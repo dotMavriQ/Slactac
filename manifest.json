@@ -1,7 +1,7 @@
 {
     "manifest_version": 3,
     "name": "Slacktack",
-    "version": "0.0.1",
+    "version": "0.8.0",
     "description": "Override chatroom names in Slack.",
     "permissions": [
         "storage",
