@@ -1,33 +1,44 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
+    <!-- Ensures proper rendering and touch zooming on mobile-like interfaces if ever needed -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slacktack</title>
+    <!-- Enhanced CSP for security -->
+    <!-- Strict CSP with all security directives explicitly defined -->
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; connect-src 'none'; img-src 'self'; font-src 'self'; object-src 'none'; media-src 'none'; frame-src 'none'; form-action 'none'; base-uri 'self'; frame-ancestors 'none'; upgrade-insecure-requests">
+    <title>SLACTAC Popup</title> <!-- More specific title -->
     <link rel="stylesheet" href="popup.css">
-    <style>
-        /* Set the fixed size of the popup */
-        body {
-            width: 300px;
-            height: 300px;
-        }
-    </style>
+    <!-- REMOVED inline <style> block for body sizing -->
 </head>
+
 <body>
     <div class="popup-container">
-        <h3>Slacktack</h3>
+        <h3>SLACTAC</h3> <!-- Consistent naming -->
+
         <div class="input-group">
-            <label for="original-name">Original Name:</label>
-            <input type="text" id="original-name" placeholder="Channel Name">
+            <!-- Label clearly describes the expected input -->
+            <label for="original-name">Original Slack Name:</label>
+            <!-- Placeholder gives examples -->
+            <input type="text" id="original-name" placeholder="#general or @username" autocomplete="off">
         </div>
+
         <div class="input-group">
-            <label for="new-name">New Name:</label>
-            <input type="text" id="new-name" placeholder="Custom Name">
+            <label for="new-name">Your Custom Name:</label>
+            <input type="text" id="new-name" placeholder="My Team Channel or John Doe" autocomplete="off">
         </div>
-        <button id="save">Save</button>
+
+        <!-- More descriptive button text -->
+        <button id="save">Save Tack</button>
         <button id="clear-all">Clear All Tacks</button>
-        <div id="message"></div>
+
+        <!-- Message area for feedback, initially empty/hidden by JS/CSS -->
+        <div id="message" role="status" aria-live="polite"></div>
+
     </div>
-    <script src="popup.js"></script>
+    <!-- 'defer' ensures HTML is parsed before script runs, good practice -->
+    <script src="popup.js" defer></script>
 </body>
+
 </html>

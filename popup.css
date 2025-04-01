@@ -1,56 +1,148 @@
 /* popup.css */
 
-/* Gruvbox color scheme */
+/* Gruvbox dark theme variables */
 :root {
-    --background: #282828;
-    --foreground: #ebdbb2;
-    --accent: #d79921;
-    --input-bg: #3c3836;
-    --input-border: #504945;
-    --button-bg: #b8bb26;
-    --button-text: #282828;
+    --bg: #282828;         /* Background */
+    --fg: #ebdbb2;         /* Foreground (default text) */
+    --fg-dim: #bdae93;     /* Dimmer foreground (for labels, placeholders) */
+    --accent: #d79921;     /* Yellow (titles, focus) */
+    --input-bg: #3c3836;   /* Input background */
+    --input-border: #504945; /* Input border */
+    --button-save-bg: #b8bb26; /* Green (save button) */
+    --button-save-fg: #282828; /* Dark text on green */
+    --button-save-hover: #98971a; /* Darker green */
+    --button-clear-bg: #fb4934; /* Red (clear button) */
+    --button-clear-fg: #ebdbb2; /* Light text on red */
+    --button-clear-hover: #cc241d; /* Darker red */
+    --message-success: #b8bb26; /* Green (success message) */
+    --message-error: #fb4934;   /* Red (error message) */
+}
+
+/* Apply box-sizing globally for easier layout */
+*, *::before, *::after {
+  box-sizing: border-box;
 }
 
 body {
-    background-color: var(--background);
-    color: var(--foreground);
-    font-family: Arial, sans-serif;
-    padding: 10px;
+    background-color: var(--bg);
+    color: var(--fg);
+    /* Common sans-serif font stack, more modern than Arial */
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    padding: 15px; /* More breathing room */
     margin: 0;
-    overflow: hidden; /* Prevent scrollbars */
+    /* Define popup size here instead of inline HTML */
+    width: 320px;  /* A common comfortable width */
+    height: auto;  /* Allow height to adjust to content */
+    min-height: 280px; /* Ensure minimum space even if content is short */
+    overflow: hidden; /* Prevent scrollbars if content unexpectedly overflows slightly */
+    font-size: 14px; /* Base font size */
 }
 
 .popup-container {
     display: flex;
     flex-direction: column;
-    align-items: center;
+    align-items: center; /* Center items horizontally */
+    height: 100%; /* Try to fill the body height */
 }
 
 h3 {
     color: var(--accent);
-    margin-bottom: 10px;
+    margin-top: 0; /* Remove default top margin */
+    margin-bottom: 20px; /* More space below title */
+    font-weight: 600; /* Slightly bolder */
+    text-align: center;
+    width: 100%; /* Ensure centering works well */
 }
 
 .input-group {
-    margin-bottom: 10px;
-    width: 90%;
+    margin-bottom: 15px; /* More space between input groups */
+    width: 100%; /* Use full width */
 }
 
 label {
     display: block;
     margin-bottom: 5px;
+    font-size: 0.9em;
+    color: var(--fg-dim); /* Use dimmer foreground for labels */
+    font-weight: 500;
 }
 
-input {
+input[type="text"] {
     width: 100%;
-    padding: 5px;
+    padding: 8px 10px; /* Vertical and horizontal padding */
     background-color: var(--input-bg);
-    color: var(--foreground);
+    color: var(--fg);
     border: 1px solid var(--input-border);
-    border-radius: 3px;
+    border-radius: 4px; /* Slightly more rounded */
+    font-size: 1em; /* Inherit base font size */
+    line-height: 1.4; /* Improve text line height */
+    transition: border-color 0.2s ease, box-shadow 0.2s ease; /* Smooth focus transition */
+}
+
+/* Style for input placeholder text */
+input[type="text"]::placeholder {
+    color: var(--fg-dim);
+    opacity: 0.8; /* Make placeholder slightly less prominent */
+}
+
+/* Focus style for accessibility and usability */
+input[type="text"]:focus {
+    outline: none; /* Remove default browser outline */
+    border-color: var(--accent);
+    /* Subtle glow effect using the accent color */
+    box-shadow: 0 0 0 2px rgba(215, 153, 33, 0.4);
 }
 
 button {
-    width: 75%;
-    padding:1%;
+    width: 100%; /* Make buttons take full width for easier clicking */
+    padding: 10px 15px; /* Generous padding */
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600; /* Bolder button text */
+    font-size: 0.95em; /* Slightly smaller than base font size */
+    margin-top: 8px; /* Space above buttons */
+    transition: background-color 0.2s ease; /* Smooth hover transition */
+    text-align: center;
+}
+
+/* Specific styles for the Save button */
+#save {
+    background-color: var(--button-save-bg);
+    color: var(--button-save-fg);
+    margin-bottom: 5px; /* Add small space between buttons */
+}
+
+#save:hover {
+    background-color: var(--button-save-hover);
+}
+
+/* Specific styles for the Clear All button */
+#clear-all {
+    background-color: var(--button-clear-bg);
+    color: var(--button-clear-fg); /* Use light text on red */
+}
+
+#clear-all:hover {
+    background-color: var(--button-clear-hover);
+}
+
+/* Style for the message feedback area */
+#message {
+    margin-top: 15px; /* Space above message area */
+    font-size: 0.9em;
+    min-height: 1.2em; /* Reserve space even when hidden/empty */
+    width: 100%;
+    text-align: center;
+    /* JS will control text content and color */
+    visibility: hidden; /* Initially hidden, JS makes it visible */
+    font-weight: 500;
+}
+
+/* Ensure message area uses correct colors (redundant if JS sets inline, but good fallback) */
+#message.success {
+    color: var(--message-success);
+}
+#message.error {
+    color: var(--message-error);
 }
