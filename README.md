@@ -2,34 +2,33 @@
 
 ![Slacktack Logo](https://raw.githubusercontent.com/dotMavriQ/Slacktack/refs/heads/master/icons/icon128.png)
 
-**Slacktack** is a Chrome extension that allows you to override and customize the names of chatrooms in Slack. Personalize your workspace by renaming channels to something more meaningful or easier to recognize!
+**Slacktack** is a Chrome extension that lets you persistently override and customize Slack channel names. Personalize your workspace by renaming channels to something more meaningful or easier to recognize. *(Note: User renaming is not supported yet.)*
 
 ## Features
 
-- Override the names of Slack chatrooms.
-- Save and manage custom chatroom names directly from the popup interface.
-- Clear all custom name overrides with a single click.
-- Uses a sleek dark Gruvbox color scheme for a developer-friendly experience.
+- Override Slack channel names.
+- Save and manage custom channel names via a simple popup interface.
+- Real-time updates on the Slack web page.
+- Persistent overrides across sessions.
 
 ## Installation
 
-1. Clone or download the repository to your local machine.
+1. Clone or download this repository.
 2. Open Chrome and navigate to `chrome://extensions/`.
-3. Enable **Developer mode** in the top-right corner.
-4. Click **Load unpacked** and select the `Slacktack` folder.
+3. Enable **Developer Mode** in the top-right corner.
+4. Click **Load Unpacked** and select the `Slacktack` folder.
 
 ## Usage
 
-1. Click on the **Slacktack** icon in the Chrome toolbar to open the popup.
-2. Enter the **Original Name** of the Slack chatroom and the **New Name** you wish to use, then click **Save**.
-3. The chatroom names will update in real-time on the Slack web page.
-4. To clear all custom name overrides, click the **Clear All Tacks** button and confirm your choice.
-
-![Slacktack Popup](https://raw.githubusercontent.com/dotMavriQ/Slacktack/refs/heads/master/icons/icon128.png)
+1. Click the **Slacktack** icon in the Chrome toolbar to open the popup.
+2. Use the **Pick Channel** button or manually enter the **Original Slack Channel Name**.
+3. Enter your desired custom channel name in the **Your Custom Channel Name** field.
+4. Click **Save Tack** to apply the override—the Slack channel name will update in real time.
+5. To view or delete stored overrides, click the **Stored Tacks** button.
 
 ## Contributing
 
-Feel free to submit issues or pull requests for new features, bug fixes, or other improvements!
+Contributions are welcome! Feel free to submit issues or pull requests for new features, bug fixes, or improvements.
 
 ## License
 

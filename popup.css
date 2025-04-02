@@ -1,56 +1,279 @@
 /* popup.css */
 
-/* Gruvbox color scheme */
+/* Gruvbox dark theme variables */
 :root {
-    --background: #282828;
-    --foreground: #ebdbb2;
+    --bg: #282828;
+    --fg: #ebdbb2;
+    --fg-dim: #bdae93;
     --accent: #d79921;
     --input-bg: #3c3836;
     --input-border: #504945;
-    --button-bg: #b8bb26;
-    --button-text: #282828;
-}
-
-body {
-    background-color: var(--background);
-    color: var(--foreground);
-    font-family: Arial, sans-serif;
-    padding: 10px;
+    --button-save-bg: #b8bb26;
+    --button-save-fg: #282828;
+    --button-save-hover: #98971a;
+    --button-clear-bg: #fb4934;
+    --button-clear-fg: #ebdbb2;
+    --button-clear-hover: #cc241d;
+    --button-picker-bg: #83a598;
+    --button-picker-hover: #458588;
+    --button-view-bg: #d3869b;
+    --button-view-hover: #b16286;
+    --button-back-bg: #fabd2f;
+    --button-back-hover: #d79921;
+    --message-success: #b8bb26;
+    --message-error: #fb4934;
+    --table-border: #504945;
+    --table-header-bg: #3c3836;
+    --delete-icon-color: #fb4934;
+  }
+  
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+  
+  body {
+    background-color: var(--bg);
+    color: var(--fg);
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol";
+    padding: 15px;
     margin: 0;
-    overflow: hidden; /* Prevent scrollbars */
-}
-
-.popup-container {
+    width: 320px;
+    height: 500px; /* fixed overall height for consistency */
+    overflow: hidden;
+    font-size: 14px;
+    border-radius: 10px; /* rounded edges on the popup itself */
+  }
+  
+  .popup-container {
     display: flex;
     flex-direction: column;
     align-items: center;
-}
-
-h3 {
+    height: 100%;
+    width: 100%;
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  
+  .header {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-bottom: 15px;
+    width: 100%;
+  }
+  
+  .logo {
+    width: 32px;
+    height: 32px;
+    margin-right: 10px;
+  }
+  
+  h3 {
     color: var(--accent);
-    margin-bottom: 10px;
-}
-
-.input-group {
-    margin-bottom: 10px;
-    width: 90%;
-}
-
-label {
+    margin: 0;
+    font-weight: 600;
+    text-align: center;
+  }
+  
+  h4 {
+    color: var(--accent);
+    margin-top: 0;
+    margin-bottom: 15px;
+    text-align: center;
+    width: 100%;
+  }
+  
+  .view {
+    width: 100%;
+    flex: 1; /* fill available space so views stay consistent */
+    overflow: hidden;
+  }
+  
+  .hidden {
+    display: none;
+  }
+  
+  .input-group {
+    margin-bottom: 15px;
+    width: 100%;
+  }
+  
+  .input-hint {
+    font-size: 0.8em;
+    color: var(--fg-dim);
+    margin-top: 2px;
+    font-style: italic;
+  }
+  
+  label {
     display: block;
     margin-bottom: 5px;
-}
-
-input {
+    font-size: 0.9em;
+    color: var(--fg-dim);
+    font-weight: 500;
+  }
+  
+  input[type="text"] {
     width: 100%;
-    padding: 5px;
+    padding: 8px 10px;
     background-color: var(--input-bg);
-    color: var(--foreground);
+    color: var(--fg);
     border: 1px solid var(--input-border);
-    border-radius: 3px;
-}
-
-button {
-    width: 75%;
-    padding:1%;
-}
+    border-radius: 4px;
+    font-size: 1em;
+    line-height: 1.4;
+    transition: border-color 0.2s ease, box-shadow 0.2s ease;
+  }
+  
+  input[type="text"]::placeholder {
+    color: var(--fg-dim);
+    opacity: 0.8;
+  }
+  
+  input[type="text"]:focus {
+    outline: none;
+    border-color: var(--accent);
+    box-shadow: 0 0 0 2px rgba(215, 153, 33, 0.4);
+  }
+  
+  button {
+    width: 100%;
+    padding: 10px 15px;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-weight: 600;
+    font-size: 0.95em;
+    margin-top: 8px;
+    transition: background-color 0.2s ease;
+    text-align: center;
+  }
+  
+  .button-save {
+    background-color: var(--button-save-bg);
+    color: var(--button-save-fg);
+    margin-bottom: 5px;
+  }
+  
+  .button-save:hover {
+    background-color: var(--button-save-hover);
+  }
+  
+  .button-picker {
+    background-color: var(--button-picker-bg);
+    color: var(--button-save-fg);
+    margin-bottom: 5px;
+  }
+  
+  .button-picker:hover {
+    background-color: var(--button-picker-hover);
+  }
+  
+  .button-view {
+    background-color: var(--button-view-bg);
+    color: var(--button-save-fg);
+  }
+  
+  .button-view:hover {
+    background-color: var(--button-view-hover);
+  }
+  
+  .button-back {
+    background-color: var(--button-back-bg);
+    color: var(--button-save-fg);
+    margin-top: 15px;
+  }
+  
+  .button-back:hover {
+    background-color: var(--button-back-hover);
+  }
+  
+  #message {
+    margin-top: 15px;
+    font-size: 0.9em;
+    min-height: 1.2em;
+    width: 100%;
+    text-align: center;
+    visibility: hidden;
+    font-weight: 500;
+  }
+  
+  #message.success {
+    color: var(--message-success);
+  }
+  
+  #message.error {
+    color: var(--message-error);
+  }
+  
+  .tacks-table {
+    width: 100%;
+    max-height: 250px;
+    overflow-y: auto;
+    border: 1px solid var(--table-border);
+    border-radius: 4px;
+    background-color: var(--input-bg);
+    -ms-overflow-style: none;  /* IE and Edge */
+    scrollbar-width: none;  /* Firefox */
+  }
+  
+  .tacks-table::-webkit-scrollbar {
+    display: none;
+  }
+  
+  .tack-row {
+    display: flex;
+    padding: 8px;
+    border-bottom: 1px solid var(--table-border);
+  }
+  
+  .tack-row:last-child {
+    border-bottom: none;
+  }
+  
+  .tack-names {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .tack-original {
+    font-size: 0.85em;
+    color: var(--fg-dim);
+  }
+  
+  .tack-custom {
+    font-weight: 500;
+  }
+  
+  .tack-delete {
+    cursor: pointer;
+    color: var(--delete-icon-color);
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 5px;
+  }
+  
+  .tack-delete:hover {
+    opacity: 0.8;
+  }
+  
+  .picker-mode {
+    position: fixed;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    background-color: var(--button-picker-bg);
+    color: var(--button-save-fg);
+    text-align: center;
+    padding: 5px;
+    font-weight: bold;
+  }
+  
+  .slactac-picker-highlighted-target {
+    /* Optional visual highlighting */
+    /* outline: 2px dashed var(--accent) !important; */
+  }
+  

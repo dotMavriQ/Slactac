@@ -1,33 +1,50 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
+    <!-- Responsive viewport -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Slacktack</title>
+    <title>SLACTAC Popup</title>
     <link rel="stylesheet" href="popup.css">
-    <style>
-        /* Set the fixed size of the popup */
-        body {
-            width: 300px;
-            height: 300px;
-        }
-    </style>
 </head>
+
 <body>
     <div class="popup-container">
-        <h3>Slacktack</h3>
-        <div class="input-group">
-            <label for="original-name">Original Name:</label>
-            <input type="text" id="original-name" placeholder="Channel Name">
+        <div class="header">
+            <img src="icons/icon32.png" alt="SLACTAC logo" class="logo">
+            <h3>SLACTAC</h3>
         </div>
-        <div class="input-group">
-            <label for="new-name">New Name:</label>
-            <input type="text" id="new-name" placeholder="Custom Name">
+
+        <!-- Main view -->
+        <div id="main-view" class="view">
+            <div class="input-group">
+                <label for="original-name">Original Slack Channel Name:</label>
+                <input type="text" id="original-name" placeholder="#general or #marketing" autocomplete="off">
+                <div class="input-hint">Type or use picker to select a channel</div>
+            </div>
+
+            <div class="input-group">
+                <label for="new-name">Your Custom Channel Name:</label>
+                <input type="text" id="new-name" placeholder="My Team Channel" autocomplete="off">
+            </div>
+
+            <button id="save" class="button-save">Save Tack</button>
+            <button id="channel-picker" class="button-picker">Pick Channel</button>
+            <button id="view-stored" class="button-view">Stored Tacks</button>
         </div>
-        <button id="save">Save</button>
-        <button id="clear-all">Clear All Tacks</button>
-        <div id="message"></div>
+
+        <!-- Stored tacks view -->
+        <div id="stored-view" class="view hidden">
+            <h4>Stored Tacks</h4>
+            <div id="tacks-table" class="tacks-table"></div>
+            <button id="back-to-main" class="button-back">Back</button>
+        </div>
+
+        <!-- Message area for feedback -->
+        <div id="message" role="status" aria-live="polite"></div>
     </div>
-    <script src="popup.js"></script>
+    <script src="popup.js" defer></script>
 </body>
+
 </html>
