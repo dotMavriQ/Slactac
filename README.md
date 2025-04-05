@@ -2,7 +2,20 @@
 
 ![Slactac Logo](https://raw.githubusercontent.com/dotMavriQ/Slactac/refs/heads/master/icons/icon128.png)
 
-**Slactac** is a Chrome extension that lets you persistently override and customize Slack channel names. Personalize your workspace by renaming channels to something more meaningful or easier to recognize. *(Note: User renaming is not supported yet.)*
+**Slactac** is a Chrome extension that lets you persistently override and customize Slack channel names. Personalize your workspace by renaming channels to something more meaningful or easier to recognize.  
+*(Note: User renaming is not supported yet.)*
+
+---
+
+## ✅ Now Available on the Chrome Web Store!
+
+You can now install **Slactac** directly from the Chrome Web Store:
+
+👉 [https://chromewebstore.google.com/detail/slactac/gnjiocbockjlkpnlonimgihcbhpdephe](https://chromewebstore.google.com/detail/slactac/gnjiocbockjlkpnlonimgihcbhpdephe)
+
+If you find **Slactac** useful, please consider leaving a rating or short review. Any kind of feedback helps support development and improves the extension for everyone. Obrigado!
+
+---
 
 ## Features
 
@@ -11,7 +24,7 @@
 - Real-time updates on the Slack web page.
 - Persistent overrides across sessions.
 
-## Installation
+## Installation (Manual)
 
 1. Clone or download this repository.
 2. Open Chrome and navigate to `chrome://extensions/`.
