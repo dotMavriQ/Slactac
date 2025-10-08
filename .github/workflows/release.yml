@@ -1,0 +1,34 @@
+name: package-extension
+
+on:
+  release:
+    types: [published]
+
+jobs:
+  bundle:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Create distributable zip
+        run: |
+          VERSION=$(jq -r '.version' manifest.json)
+          ARCHIVE_NAME="slactac-v${VERSION}.zip"
+          zip -r "$ARCHIVE_NAME" \
+            icons \
+            manifest.json \
+            popup.html \
+            popup.css \
+            popup.js \
+            content.js \
+            storage.js \
+            README.md \
+            LICENSE
+          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> "$GITHUB_ENV"
+
+      - name: Upload release asset
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ env.ARCHIVE_NAME }}
