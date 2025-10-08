@@ -14,10 +14,55 @@ const tacksTable = document.getElementById("tacks-table");
 
 // --- Constants ---
 const MESSAGE_TIMEOUT_MS = 3000;
-const STORAGE_KEY = "chatRoomOverrides";
 const LOCAL_PICK_KEY = "lastPickedChannelName";
 
 // --- Utility Functions ---
+function applyPickedChannelName(channelName, { showFeedback = true } = {}) {
+  if (typeof channelName !== "string") return;
+  const trimmed = channelName.trim();
+  if (!trimmed) return;
+  const previousValue = originalNameInput.value;
+  originalNameInput.value = trimmed;
+  loadOverrideForChannel(trimmed);
+  if (showFeedback && previousValue !== trimmed) {
+    showMessage("Channel selected!", false);
+  }
+  document.body?.classList.remove("channel-picker-active");
+}
+
+function getActiveTab() {
+  return new Promise((resolve, reject) => {
+    const resolveFromTabs = (tabs) => {
+      if (tabs && tabs.length > 0 && typeof tabs[0].id === "number") {
+        resolve(tabs[0]);
+      } else {
+        reject(new Error("Could not determine the active tab."));
+      }
+    };
+
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+        return;
+      }
+
+      if (tabs && tabs.length > 0) {
+        resolveFromTabs(tabs);
+        return;
+      }
+
+      chrome.tabs.query({ active: true, lastFocusedWindow: true }, (fallbackTabs) => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+
+        resolveFromTabs(fallbackTabs);
+      });
+    });
+  });
+}
+
 function showMessage(text, isError = false) {
   if (!messageElement) return;
   messageElement.textContent = text;
@@ -33,29 +78,79 @@ function showMessage(text, isError = false) {
   }, MESSAGE_TIMEOUT_MS);
 }
 
-function notifyContentScript() {
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs && tabs[0] && tabs[0].id) {
-      chrome.tabs.sendMessage(tabs[0].id, { action: "refreshNamesSLACTAC" });
-    } else {
+function debounce(fn, wait = 200) {
+  let timeoutId;
+  return (...args) => {
+    clearTimeout(timeoutId);
+    timeoutId = setTimeout(() => {
+      fn(...args);
+    }, wait);
+  };
+}
+
+async function loadOverrideForChannel(channelName) {
+  const trimmed = typeof channelName === "string" ? channelName.trim() : "";
+  if (!trimmed) {
+    newNameInput.value = "";
+    return;
+  }
+
+  try {
+    const overrides = await storage.get();
+    const stored = overrides[trimmed];
+    newNameInput.value = typeof stored === "string" ? stored : "";
+  } catch (error) {
+    console.error("SLACTAC Popup: Failed to load override for channel.", error);
+    showMessage("Couldn't load stored tack for that channel.", true);
+    newNameInput.value = "";
+  }
+}
+
+function loadOverrideForCurrentChannel() {
+  const currentChannel = originalNameInput.value;
+  loadOverrideForChannel(currentChannel);
+}
+
+const debouncedLoadOverrideForCurrentChannel = debounce(
+  loadOverrideForCurrentChannel,
+  200
+);
+
+function loadLastPickedChannel() {
+  chrome.storage.local.get(LOCAL_PICK_KEY, (data) => {
+    if (chrome.runtime.lastError) {
       console.warn(
-        "SLACTAC: Could not find active tab ID to send refresh message."
+        "SLACTAC Popup: Could not load last picked channel.",
+        chrome.runtime.lastError.message
       );
+      return;
+    }
+    const storedName = data[LOCAL_PICK_KEY];
+    if (typeof storedName === "string" && storedName.trim()) {
+      applyPickedChannelName(storedName, { showFeedback: false });
     }
   });
 }
 
+function notifyContentScript() {
+  getActiveTab()
+    .then((tab) => {
+      chrome.tabs.sendMessage(tab.id, { action: "refreshNamesSLACTAC" }, () => {
+        if (chrome.runtime.lastError) {
+          console.warn(
+            `SLACTAC: Could not send refresh message to tab ${tab.id}: ${chrome.runtime.lastError.message}`
+          );
+        }
+      });
+    })
+    .catch((error) => {
+      console.warn(`SLACTAC: ${error.message}`);
+    });
+}
+
 function loadStoredTacks() {
   tacksTable.innerHTML = "";
-  chrome.storage.sync.get(STORAGE_KEY, (data) => {
-    if (chrome.runtime.lastError) {
-      showMessage(
-        `Error loading tacks: ${chrome.runtime.lastError.message}`,
-        true
-      );
-      return;
-    }
-    const overrides = data[STORAGE_KEY] || {};
+  storage.get().then((overrides) => {
     const keys = Object.keys(overrides);
     if (keys.length === 0) {
       tacksTable.innerHTML = '<div class="tack-row">No tacks stored yet.</div>';
@@ -80,28 +175,25 @@ function loadStoredTacks() {
         deleteTack(originalName);
       });
     });
+  }).catch(error => {
+    showMessage(`Error loading tacks: ${error.message}`, true);
   });
 }
 
 function deleteTack(originalName) {
-  chrome.storage.sync.get(STORAGE_KEY, (data) => {
-    if (chrome.runtime.lastError) {
-      showMessage(`Error: ${chrome.runtime.lastError.message}`, true);
-      return;
-    }
-    const overrides = data[STORAGE_KEY] || {};
+  storage.get().then(overrides => {
     if (originalName in overrides) {
-      delete overrides[originalName];
-      chrome.storage.sync.set({ [STORAGE_KEY]: overrides }, () => {
-        if (chrome.runtime.lastError) {
-          showMessage(`Error: ${chrome.runtime.lastError.message}`, true);
-        } else {
-          showMessage("Tack deleted!");
-          loadStoredTacks();
-          notifyContentScript();
-        }
+      const { [originalName]: _removed, ...rest } = overrides;
+      storage.set(rest).then(() => {
+        showMessage("Tack deleted!");
+        loadStoredTacks();
+        notifyContentScript();
+      }).catch(error => {
+        showMessage(`Error: ${error.message}`, true);
       });
     }
+  }).catch(error => {
+    showMessage(`Error: ${error.message}`, true);
   });
 }
 
@@ -114,13 +206,27 @@ function showMainView() {
 function showStoredView() {
   chrome.storage.local.remove(LOCAL_PICK_KEY, () => {
     originalNameInput.value = "";
+    newNameInput.value = "";
   });
   mainView.classList.add("hidden");
   storedView.classList.remove("hidden");
   loadStoredTacks();
 }
 
+// --- Storage Change Sync ---
+chrome.storage.onChanged.addListener((changes, areaName) => {
+  if (areaName !== "local") return;
+  if (!Object.prototype.hasOwnProperty.call(changes, LOCAL_PICK_KEY)) return;
+  const { newValue } = changes[LOCAL_PICK_KEY];
+  if (typeof newValue !== "string") return;
+  applyPickedChannelName(newValue, { showFeedback: false });
+});
+
 // --- Event Listeners ---
+originalNameInput.addEventListener("input", () => {
+  debouncedLoadOverrideForCurrentChannel();
+});
+
 saveButton.addEventListener("click", () => {
   const originalName = originalNameInput.value.trim();
   const newName = newNameInput.value.trim();
@@ -128,88 +234,74 @@ saveButton.addEventListener("click", () => {
     showMessage("Both original and new names are required.", true);
     return;
   }
-  chrome.storage.sync.get(STORAGE_KEY, (data) => {
-    if (chrome.runtime.lastError) {
-      showMessage(
-        `Error loading overrides: ${chrome.runtime.lastError.message}`,
-        true
-      );
-      return;
-    }
-    const overrides = data[STORAGE_KEY] || {};
-    overrides[originalName] = newName;
-    chrome.storage.sync.set({ [STORAGE_KEY]: overrides }, () => {
-      if (chrome.runtime.lastError) {
-        showMessage(
-          `Error saving override: ${chrome.runtime.lastError.message}`,
-          true
-        );
-      } else {
-        showMessage("Tack saved successfully!");
-        originalNameInput.value = "";
-        newNameInput.value = "";
-        originalNameInput.focus();
-        chrome.storage.local.remove(LOCAL_PICK_KEY);
-        notifyContentScript();
-      }
+  storage.get().then(overrides => {
+    const updatedOverrides = {
+      ...overrides,
+      [originalName]: newName,
+    };
+    storage.set(updatedOverrides).then(() => {
+      showMessage("Tack saved successfully!");
+      originalNameInput.value = "";
+      newNameInput.value = "";
+      originalNameInput.focus();
+      // Clear the locally stored picked name after a successful save.
+      chrome.storage.local.remove(LOCAL_PICK_KEY);
+      notifyContentScript();
+    }).catch(error => {
+      showMessage(`Error saving override: ${error.message}`, true);
     });
+  }).catch(error => {
+    showMessage(`Error loading overrides: ${error.message}`, true);
   });
 });
 
-channelPickerButton.addEventListener("click", () => {
-  const manualChannel = originalNameInput.value.trim();
-  if (manualChannel) {
-    showMessage("Using manually entered channel name");
-    return;
-  }
-  chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-    if (tabs && tabs[0] && tabs[0].id && tabs[0].url?.includes("slack.com")) {
-      const tabId = tabs[0].id;
-      console.log(
-        `SLACTAC Popup: Sending activateChannelPicker to tab ${tabId}`
-      );
-      chrome.tabs.sendMessage(
-        tabId,
-        { action: "activateChannelPicker" },
-        (response) => {
-          if (chrome.runtime.lastError) {
-            console.error(
-              `SLACTAC Popup: Error sending 'activateChannelPicker' message: ${chrome.runtime.lastError.message}`
-            );
-            showMessage(
-              "Cannot communicate with page. Make sure you're on Slack and the page is fully loaded.",
-              true
-            );
-            chrome.tabs.sendMessage(tabId, {
-              action: "deactivateChannelPicker",
-            });
-            document.body.classList.remove("channel-picker-active");
-          } else if (response && response.success) {
-            console.log(
-              "SLACTAC Popup: Picker activation acknowledged by content script."
-            );
-            showMessage(
-              "Picker active! Click a channel on the Slack page.",
-              false
-            );
-            document.body.classList.add("channel-picker-active");
-          } else {
-            console.warn(
-              `SLACTAC Popup: Content script reported activation failure: ${response?.status}`
-            );
-            showMessage(
-              response?.status || "Failed to activate picker on page.",
-              true
-            );
-            document.body.classList.remove("channel-picker-active");
-          }
+channelPickerButton.addEventListener("click", async () => {
+  try {
+    const tab = await getActiveTab();
+    console.log(
+      `SLACTAC Popup: Sending activateChannelPicker to tab ${tab.id}`
+    );
+    chrome.tabs.sendMessage(
+      tab.id,
+      { action: "activateChannelPicker" },
+      (response) => {
+        if (chrome.runtime.lastError) {
+          console.error(
+            `SLACTAC Popup: Error sending 'activateChannelPicker' message: ${chrome.runtime.lastError.message}`
+          );
+          showMessage(
+            "Cannot communicate with page. Make sure you're on Slack and the page is fully loaded.",
+            true
+          );
+          chrome.tabs.sendMessage(tab.id, {
+            action: "deactivateChannelPicker",
+          });
+          document.body.classList.remove("channel-picker-active");
+        } else if (response && response.success) {
+          console.log(
+            "SLACTAC Popup: Picker activation acknowledged by content script."
+          );
+          showMessage(
+            "Picker active! Click a channel on the Slack page.",
+            false
+          );
+          document.body.classList.add("channel-picker-active");
+        } else {
+          console.warn(
+            `SLACTAC Popup: Content script reported activation failure: ${response?.status}`
+          );
+          showMessage(
+            response?.status || "Failed to activate picker on page.",
+            true
+          );
+          document.body.classList.remove("channel-picker-active");
         }
-      );
-    } else {
-      console.error("SLACTAC Popup: Could not find suitable active Slack tab.");
-      showMessage("Could not find active Slack tab.", true);
-    }
-  });
+      }
+    );
+  } catch (error) {
+    console.error("SLACTAC Popup: Could not find suitable active tab.", error);
+    showMessage(error.message || "Could not find active tab.", true);
+  }
 });
 
 viewStoredButton.addEventListener("click", () => {
@@ -227,37 +319,6 @@ newNameInput.addEventListener("keypress", (event) => {
   }
 });
 
-// --- Listen for Messages from Content Script ---
-chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  if (message.action === "channelPicked" && message.channelName) {
-    console.log("SLACTAC Popup: Received channelPicked", message.channelName);
-    chrome.storage.local.set({ [LOCAL_PICK_KEY]: message.channelName }, () => {
-      console.log("SLACTAC Popup: Stored lastPickedChannelName.");
-    });
-    originalNameInput.value = message.channelName;
-    showMessage("Channel selected!", false);
-    document.body.classList.remove("channel-picker-active");
-  } else if (message.action === "pickerDeactivated") {
-    console.log("SLACTAC Popup: Received pickerDeactivated");
-    showMessage("Picker deactivated.", false);
-    document.body.classList.remove("channel-picker-active");
-  }
-});
-
-// --- Initialize the Popup ---
-function initPopup() {
-  chrome.storage.local.get(LOCAL_PICK_KEY, (data) => {
-    if (data[LOCAL_PICK_KEY]) {
-      originalNameInput.value = data[LOCAL_PICK_KEY];
-      console.log(
-        "SLACTAC Popup: Loaded stored channel:",
-        data[LOCAL_PICK_KEY]
-      );
-    }
-  });
-  showMainView();
-  messageElement.style.visibility = "hidden";
-  console.log("SLACTAC Popup: Initialized and ready.");
-}
-
-document.addEventListener("DOMContentLoaded", initPopup);
+// --- Initial Load ---
+loadLastPickedChannel();
+loadOverrideForCurrentChannel();

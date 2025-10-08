@@ -2,15 +2,8 @@ console.log("SLACTAC Content Script STARTING - Top of file");
 
 // --- SLACTAC Name Overriding Variables & Functions ---
 function overrideChatroomNames() {
-  // Load saved overrides from Chrome storage
-  chrome.storage.sync.get("chatRoomOverrides", (data) => {
-    if (chrome.runtime.lastError) {
-      console.error(
-        `SLACTAC Error getting overrides: ${chrome.runtime.lastError.message}`
-      );
-      return;
-    }
-    const overrides = data.chatRoomOverrides || {};
+  // Load saved overrides from storage
+  storage.get().then((overrides) => {
     const sidebarSelector = ".p-channel_sidebar__list"; // Optional improvement
     const nameOverrideSelector = ".p-channel_sidebar__name"; // Selector for channel names
     const listContainer = document.querySelector(sidebarSelector);
@@ -34,6 +27,8 @@ function overrideChatroomNames() {
         }
       }
     });
+  }).catch(error => {
+    console.error("SLACTAC: Failed to get overrides for name replacement.", error);
   });
 }
 
@@ -60,6 +55,60 @@ let originalCursor = null;
 const overlayContainerId = "slactac-overlay-container";
 const highlightedElementClass = "slactac-picker-highlighted-target";
 let currentHighlightedElement = null;
+let currentHighlightedNameElement = null;
+let defaultHighlightedRegion = null;
+let channelPickerProcessing = false;
+let pickerFailsafeTimer = null;
+const LOCAL_PICK_KEY = "lastPickedChannelName";
+
+const CHANNEL_LIST_SELECTORS = [
+  ".p-channel_sidebar__static_list",
+  ".p-channel_sidebar__list",
+  "[data-qa='channel_sidebar']",
+  "[data-qa='slack_kit_list']",
+  ".p-channel_sidebar",
+  ".p-workspace__sidebar"
+];
+
+const CHANNEL_ITEM_SELECTORS = [
+  "[data-qa='channel_sidebar_channel']",
+  "[data-qa-channel-sidebar-channel-id]",
+  "[role='treeitem']",
+  ".p-channel_sidebar__channel",
+  ".p-channel_sidebar__static_channel",
+  ".p-channel_sidebar__link"
+];
+
+const CHANNEL_NAME_SELECTORS = [
+  ".p-channel_sidebar__name",
+  "[data-qa='channel_sidebar_channel_name']",
+  "[data-qa='channel_sidebar_name']",
+  "[data-qa^='channel_sidebar_name_']",
+  "[data-qa^='channel_sidebar_channel_name_']"
+];
+
+function storePickedChannelName(name) {
+  return new Promise((resolve, reject) => {
+    const sanitizedName = typeof name === "string" ? name.trim() : "";
+    if (!sanitizedName) {
+      chrome.storage.local.remove(LOCAL_PICK_KEY, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+        } else {
+          resolve();
+        }
+      });
+      return;
+    }
+    chrome.storage.local.set({ [LOCAL_PICK_KEY]: sanitizedName }, () => {
+      if (chrome.runtime.lastError) {
+        reject(new Error(chrome.runtime.lastError.message));
+      } else {
+        resolve();
+      }
+    });
+  });
+}
 
 // --- Picker Utility Functions ---
 function createPickerOverlays() {
@@ -105,7 +154,9 @@ function removePickerOverlays() {
     currentHighlightedElement.style.position = "";
     currentHighlightedElement.style.zIndex = "";
     currentHighlightedElement = null;
+    currentHighlightedNameElement = null;
   }
+  defaultHighlightedRegion = null;
 }
 
 function getElementUnderCursor(event) {
@@ -122,29 +173,119 @@ function getElementUnderCursor(event) {
   return element;
 }
 
-function findTargetChannelItemElement(startElement) {
-  if (!startElement || startElement.id?.startsWith("slactac-picker-overlay"))
-    return null;
-  if (
-    startElement === document.body ||
-    startElement === document.documentElement
-  )
-    return null;
-  const rect = startElement.getBoundingClientRect();
-  if (
-    rect.width < 2 ||
-    rect.height < 2 ||
-    rect.width > window.innerWidth * 0.8 ||
-    rect.height > window.innerHeight * 0.8
-  ) {
-    return null;
+function matchFirstSelector(element, selectors) {
+  if (!element) return null;
+  for (const selector of selectors) {
+    if (element.matches && element.matches(selector)) {
+      return element;
+    }
   }
-  return startElement;
+  return null;
 }
 
-function highlightPickerElement(element) {
+function queryFirstSelector(selectors, root = document) {
+  for (const selector of selectors) {
+    const found = root.querySelector(selector);
+    if (found) {
+      return found;
+    }
+  }
+  return null;
+}
+
+function getChannelSidebarContainer() {
+  return queryFirstSelector(CHANNEL_LIST_SELECTORS);
+}
+
+function findNearestChannelNameElement(element) {
+  let current = element;
+  while (current && current !== document.body && current !== document.documentElement) {
+    const matched = matchFirstSelector(current, CHANNEL_NAME_SELECTORS);
+    if (matched) {
+      return matched;
+    }
+    current = current.parentElement;
+  }
+  return null;
+}
+
+function findEnclosingChannelItem(element) {
+  if (!element) return null;
+  if (!element.closest) return null;
+  const selector = CHANNEL_ITEM_SELECTORS.join(", ");
+  return element.closest(selector);
+}
+
+function resolveChannelTarget(startElement) {
+  if (!startElement || startElement.id?.startsWith("slactac-picker-overlay")) {
+    return null;
+  }
+
+  if (startElement.nodeType !== Node.ELEMENT_NODE) {
+    startElement = startElement.parentElement;
+  }
+
+  if (!startElement) {
+    return null;
+  }
+
+  const sidebar = getChannelSidebarContainer();
+  if (sidebar && !sidebar.contains(startElement)) {
+    return null;
+  }
+
+  // Strategy: Find the encompassing channel item first.
+  const channelItem = findEnclosingChannelItem(startElement);
+
+  if (channelItem) {
+    // Now find the name within that item.
+    let nameElement = queryFirstSelector(CHANNEL_NAME_SELECTORS, channelItem);
+
+    // If no specific name selector matches, find the most likely text node.
+    if (!nameElement) {
+      const textElements = Array.from(channelItem.querySelectorAll("span, div"));
+      const bestCandidate = textElements.find(
+        (el) => el.innerText && el.innerText.trim().length > 0
+      );
+      nameElement = bestCandidate || channelItem;
+    }
+
+    return {
+      highlightElement: channelItem,
+      nameElement: nameElement,
+    };
+  }
+
+  // Fallback for elements not inside a clear item, but maybe are the item itself.
+  if (matchFirstSelector(startElement, CHANNEL_ITEM_SELECTORS)) {
+    const nameElement =
+      queryFirstSelector(CHANNEL_NAME_SELECTORS, startElement) || startElement;
+    return {
+      highlightElement: startElement,
+      nameElement: nameElement,
+    };
+  }
+
+  return null;
+}
+
+function highlightDefaultChannelRegion() {
+  const sidebar = getChannelSidebarContainer();
+  defaultHighlightedRegion = sidebar || null;
+  if (sidebar) {
+    highlightPickerElement(sidebar, null, { isDefault: true });
+  } else {
+    highlightPickerElement(null, null, { isDefault: true });
+  }
+}
+
+function highlightPickerElement(element, nameElement = null, options = {}) {
+  const { isDefault = false } = options;
   const container = document.getElementById(overlayContainerId);
   if (!container) return;
+  if (element && element.nodeType !== Node.ELEMENT_NODE) {
+    element = element.parentElement || null;
+  }
   const overlayTop = document.getElementById("slactac-picker-overlay-top");
   const overlayBottom = document.getElementById(
     "slactac-picker-overlay-bottom"
@@ -153,10 +294,14 @@ function highlightPickerElement(element) {
   const overlayRight = document.getElementById("slactac-picker-overlay-right");
 
   if (currentHighlightedElement && currentHighlightedElement !== element) {
+    if (currentHighlightedElement === defaultHighlightedRegion) {
+      defaultHighlightedRegion = null;
+    }
     currentHighlightedElement.classList.remove(highlightedElementClass);
     currentHighlightedElement.style.position = "";
     currentHighlightedElement.style.zIndex = "";
     currentHighlightedElement = null;
+    currentHighlightedNameElement = null;
   }
   if (!element) {
     overlayTop.style.height = "100%";
@@ -171,6 +316,7 @@ function highlightPickerElement(element) {
       currentHighlightedElement.style.position = "";
       currentHighlightedElement.style.zIndex = "";
       currentHighlightedElement = null;
+      currentHighlightedNameElement = null;
     }
     return;
   }
@@ -179,6 +325,12 @@ function highlightPickerElement(element) {
     element.style.zIndex = "2147483647";
     element.classList.add(highlightedElementClass);
     currentHighlightedElement = element;
+  }
+  currentHighlightedNameElement = nameElement;
+  if (isDefault) {
+    defaultHighlightedRegion = element;
+  } else if (element !== defaultHighlightedRegion) {
+    defaultHighlightedRegion = null;
   }
   const rect = element.getBoundingClientRect();
   const vw = window.innerWidth;
@@ -202,10 +354,16 @@ function highlightPickerElement(element) {
 }
 
 // --- Updated Extraction Function ---
-function extractPickerChannelName(targetElement) {
-  if (!targetElement) return null;
-  let pickedText = targetElement.innerText;
-  pickedText = pickedText.trim();
+function extractPickerChannelName(nameElement, fallbackElement = null) {
+  const element = nameElement || fallbackElement;
+  if (!element) return null;
+  const textSource =
+    typeof element.innerText === "string"
+      ? element.innerText
+      : typeof element.textContent === "string"
+      ? element.textContent
+      : "";
+  const pickedText = textSource.trim();
   if (!pickedText || pickedText.length < 1) {
     return null;
   }
@@ -216,46 +374,51 @@ function extractPickerChannelName(targetElement) {
 function channelPickerMouseMoveHandler(event) {
   if (!channelPickerActive) return;
   const elementUnderCursor = getElementUnderCursor(event);
-  const targetElement = findTargetChannelItemElement(elementUnderCursor);
-  highlightPickerElement(targetElement);
+  const target = resolveChannelTarget(elementUnderCursor);
+  if (target) {
+    highlightPickerElement(target.highlightElement, target.nameElement);
+  } else {
+    highlightDefaultChannelRegion();
+  }
 }
 
-function channelPickerClickHandler(event) {
-  if (!channelPickerActive) return;
+async function channelPickerClickHandler(event) {
+  if (!channelPickerActive || channelPickerProcessing) {
+    return;
+  }
+
+  console.log("SLACTAC Picker: Click detected. Processing...");
+  channelPickerProcessing = true;
   event.preventDefault();
   event.stopPropagation();
-  const targetElement = currentHighlightedElement;
-  console.log(
-    "SLACTAC Picker (Simple w/ FX): Click detected. Target element:",
-    targetElement
+
+  // Deactivate picker visuals immediately for a responsive feel
+  deactivateChannelPicker();
+
+  const target = resolveChannelTarget(event.target);
+  const channelName = extractPickerChannelName(
+    target ? target.nameElement : null,
+    target ? target.highlightElement : null
   );
-  let pickedText = null;
-  if (targetElement) {
-    pickedText = extractPickerChannelName(targetElement);
+
+  try {
+    if (channelName) {
+      console.log(`SLACTAC Picker: Storing channel name: ${channelName}`);
+      await storePickedChannelName(channelName);
+      console.log("SLACTAC Picker: Stored picked channel in local storage.");
+    } else {
+      console.warn(
+        "SLACTAC Picker: Clicked on a non-channel element. No action taken."
+      );
+    }
+  } catch (error) {
+    console.error("SLACTAC Picker: Error during click handler execution:", error);
+  } finally {
+    console.log("SLACTAC Picker: Click processing finished.");
+    channelPickerProcessing = false;
   }
-  if (pickedText) {
-    console.log(`SLACTAC Picker (Simple w/ FX): Picked text: "${pickedText}"`);
-    // Store the picked channel name in local storage immediately.
-    chrome.storage.local.set({ lastPickedChannelName: pickedText }, () => {
-      console.log("SLACTAC: Stored lastPickedChannelName in local storage.");
-    });
-    // Also send a message (for real-time update if popup is open)
-    chrome.runtime.sendMessage({
-      action: "channelPicked",
-      channelName: pickedText,
-    });
-  } else {
-    console.log(
-      "SLACTAC Picker (Simple w/ FX): No suitable text found on highlighted element:",
-      targetElement
-    );
-  }
-  // Always deactivate after a click attempt.
-  deactivateChannelPicker(false);
-  return false;
 }
 
-// --- Picker Activation/Deactivation ---
 function isSlackPage() {
   return window.location.hostname.includes("app.slack.com");
 }
@@ -274,34 +437,46 @@ function activateChannelPicker() {
   originalCursor = document.body.style.cursor;
   document.body.style.cursor = "crosshair";
   createPickerOverlays();
-  highlightPickerElement(null);
+  highlightDefaultChannelRegion();
   document.addEventListener("mousemove", channelPickerMouseMoveHandler, true);
   document.addEventListener("click", channelPickerClickHandler, true);
+  document.addEventListener("keydown", handleKeyDown, true);
+
+  // Failsafe: If the picker is active for too long, deactivate it automatically.
+  pickerFailsafeTimer = setTimeout(() => {
+    console.warn("SLACTAC Picker: Failsafe timer triggered. Deactivating picker automatically.");
+    deactivateChannelPicker(true);
+  }, 15000); // 15 seconds
+
   console.log("SLACTAC Picker: Activated with visual effects.");
   return true;
 }
 
-function deactivateChannelPicker(notifyPopup = true) {
-  if (!channelPickerActive) return;
-  console.log("SLACTAC Picker: Deactivating with visual effects...");
+function deactivateChannelPicker(force = false) {
+  if (!channelPickerActive && !force) {
+    return;
+  }
+  console.log("SLACTAC Picker: Deactivating...");
   channelPickerActive = false;
-  document.body.style.cursor = originalCursor || "";
+  document.body.style.cursor = originalCursor;
   removePickerOverlays();
-  document.removeEventListener(
-    "mousemove",
-    channelPickerMouseMoveHandler,
-    true
-  );
+  document.removeEventListener("mousemove", channelPickerMouseMoveHandler, true);
   document.removeEventListener("click", channelPickerClickHandler, true);
-  console.log("SLACTAC Picker: Deactivated with visual effects.");
-  if (notifyPopup) {
-    try {
-      chrome.runtime.sendMessage({ action: "pickerDeactivated" });
-    } catch (e) {
-      if (!e.message.includes("Receiving end does not exist")) {
-        console.warn("SLACTAC Picker: Error sending deactivate message:", e);
-      }
-    }
+  document.removeEventListener("keydown", handleKeyDown, true);
+
+  // Clear the failsafe timer
+  if (pickerFailsafeTimer) {
+    clearTimeout(pickerFailsafeTimer);
+    pickerFailsafeTimer = null;
+  }
+
+  console.log("SLACTAC Picker: Deactivated.");
+}
+
+function handleKeyDown(event) {
+  if (channelPickerActive && event.key === "Escape") {
+    console.log("SLACTAC Picker: Escape key pressed. Deactivating picker.");
+    deactivateChannelPicker(true);
   }
 }
 

@@ -1,38 +1,29 @@
 {
-    "manifest_version": 3,
-    "name": "SLACTAC",
-    "version": "1.2.0",
-    "description": "Set custom Slack Channel Names in your browser.",
-    "icons": {
-        "16": "icons/icon16.png",
-        "32": "icons/icon32.png",
-        "48": "icons/icon48.png",
-        "128": "icons/icon128.png"
-    },
-    "permissions": [
-        "storage"
-    ],
-    "host_permissions": [
-        "https://*.slack.com/*"
-    ],
-    "action": {
-        "default_popup": "popup.html",
-        "default_icon": {
-            "16": "icons/icon16.png",
-            "32": "icons/icon32.png",
-            "48": "icons/icon48.png",
-            "128": "icons/icon128.png"
-        }
-    },
-    "content_scripts": [
-        {
-            "matches": [
-                "https://*.slack.com/*"
-            ],
-            "js": [
-                "content.js"
-            ],
-            "run_at": "document_idle"
-        }
-    ]
+  "manifest_version": 3,
+  "name": "SlacTac",
+  "version": "1.7.0",
+  "description": "Rename a Slack channel in your client.",
+  "permissions": ["storage", "activeTab", "tabs"],
+  "action": {
+    "default_popup": "popup.html",
+    "default_icon": {
+      "16": "icons/icon16.png",
+      "32": "icons/icon32.png",
+      "48": "icons/icon48.png",
+      "128": "icons/icon128.png"
+    }
+  },
+  "content_scripts": [
+    {
+      "matches": ["https://app.slack.com/*"],
+      "js": ["storage.js", "content.js"],
+      "css": []
+    }
+  ],
+  "icons": {
+    "16": "icons/icon16.png",
+    "32": "icons/icon32.png",
+    "48": "icons/icon48.png",
+    "128": "icons/icon128.png"
+  }
 }
