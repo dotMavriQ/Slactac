@@ -18,16 +18,11 @@ jobs:
       - name: Determine manifest version
         id: manifest
         run: |
-          VERSION=$(python - <<'PY'
-            import json
-            with open('manifest.json') as fh:
-                data = json.load(fh)
-            print(data.get('version', '0.0.0'))
-          PY
-          )
+          VERSION=$(jq -r '.version // "0.0.0"' manifest.json)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
       - name: Create distributable zip
+        id: package
         run: |
           set -euo pipefail
           VERSION="${{ steps.manifest.outputs.version }}"
@@ -40,16 +35,16 @@ jobs:
             popup.css \
             storage.js \
             icons
-          echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> "$GITHUB_ENV"
+          echo "archive=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: slactac-${{ steps.manifest.outputs.version }}
-          path: ${{ env.ARCHIVE_NAME }}
+          path: ${{ steps.package.outputs.archive }}
 
       - name: Upload release asset
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
-          files: ${{ env.ARCHIVE_NAME }}
+          files: ${{ steps.package.outputs.archive }}
