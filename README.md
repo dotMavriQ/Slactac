@@ -37,7 +37,7 @@ If you find **Slactac** useful, please consider leaving a rating or short review
 
 ## Releases
 
-When a GitHub release is published, an automated workflow bundles the extension into a zip archive named `slactac-v<version>.zip` and attaches it to the release assets. Download that file to sideload the exact payload that is uploaded to the Chrome Web Store or Microsoft Edge Add-ons catalogue.
+Every push to `master` (and any release you publish) triggers a workflow that bundles the extension into `slactac-v<version>.zip`. The package is uploaded as a workflow artifact, and the same archive is attached to release assets when a GitHub release is created. Download that zip to load the extension unpacked or submit it to the Chrome Web Store / Microsoft Edge Add-ons catalogue.
 
 ## Usage
 
