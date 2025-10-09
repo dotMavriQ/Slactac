@@ -1,8 +1,11 @@
 name: package-extension
 
 on:
+  push:
+    branches: [master]
   release:
     types: [published]
+  workflow_dispatch:
 
 jobs:
   bundle:
@@ -12,23 +15,41 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v4
 
+      - name: Determine manifest version
+        id: manifest
+        run: |
+          VERSION=$(python - <<'PY'
+            import json
+            with open('manifest.json') as fh:
+                data = json.load(fh)
+            print(data.get('version', '0.0.0'))
+          PY
+          )
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Create distributable zip
         run: |
-          VERSION=$(jq -r '.version' manifest.json)
+          set -euo pipefail
+          VERSION="${{ steps.manifest.outputs.version }}"
           ARCHIVE_NAME="slactac-v${VERSION}.zip"
           zip -r "$ARCHIVE_NAME" \
-            icons \
             manifest.json \
+            content.js \
+            popup.js \
             popup.html \
             popup.css \
-            popup.js \
-            content.js \
             storage.js \
-            README.md \
-            LICENSE
+            icons
           echo "ARCHIVE_NAME=$ARCHIVE_NAME" >> "$GITHUB_ENV"
 
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slactac-${{ steps.manifest.outputs.version }}
+          path: ${{ env.ARCHIVE_NAME }}
+
       - name: Upload release asset
+        if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ env.ARCHIVE_NAME }}
