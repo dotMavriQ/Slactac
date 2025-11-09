@@ -3,7 +3,8 @@
   "name": "SlacTac",
   "version": "1.7.1",
   "description": "Rename a Slack channel in your client.",
-  "permissions": ["storage", "activeTab", "tabs"],
+  "permissions": ["storage"],
+  "host_permissions": ["https://app.slack.com/*"],
   "action": {
     "default_popup": "popup.html",
     "default_icon": {
@@ -29,9 +30,9 @@
   "browser_specific_settings": {
     "gecko": {
       "id": "slactac@dotmavriq.com",
-      "data_collection_permissions": [
-        "improvement_program"
-      ]
+      "data_collection_permissions": {
+        "required": ["none"]
+      }
     }
   }
 }
