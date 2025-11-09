@@ -3,8 +3,8 @@
 const SYNC_KEY = "chatRoomOverrides";
 
 /**
- * A wrapper for chrome.storage that gracefully falls back to local storage
- * if sync is unavailable or fails.
+ * A wrapper for browser.storage (normalized from chrome.storage) that gracefully
+ * falls back to local storage if sync is unavailable or fails.
  */
 const storage = {
   /**
@@ -14,28 +14,30 @@ const storage = {
    */
   get: () => {
     return new Promise((resolve, reject) => {
-      chrome.storage.sync.get(SYNC_KEY, (data) => {
-        if (chrome.runtime.lastError) {
+      browser.storage.sync.get(SYNC_KEY).then(
+        (data) => {
+          resolve(data[SYNC_KEY] || {});
+        },
+        (error) => {
           console.warn(
             "SLACTAC Storage: Could not read from sync storage, falling back to local.",
-            chrome.runtime.lastError.message
+            error
           );
           // If sync fails, try getting from local storage.
-          chrome.storage.local.get(SYNC_KEY, (localData) => {
-            if (chrome.runtime.lastError) {
+          browser.storage.local.get(SYNC_KEY).then(
+            (localData) => {
+              resolve(localData[SYNC_KEY] || {});
+            },
+            (localError) => {
               console.error(
                 "SLACTAC Storage: Critical - Failed to read from local storage.",
-                chrome.runtime.lastError.message
+                localError
               );
-              reject(chrome.runtime.lastError);
-            } else {
-              resolve(localData[SYNC_KEY] || {});
+              reject(localError);
             }
-          });
-        } else {
-          resolve(data[SYNC_KEY] || {});
+          );
         }
-      });
+      );
     });
   },
 
@@ -47,28 +49,30 @@ const storage = {
    */
   set: (overrides) => {
     return new Promise((resolve, reject) => {
-      chrome.storage.sync.set({ [SYNC_KEY]: overrides }, () => {
-        if (chrome.runtime.lastError) {
+      browser.storage.sync.set({ [SYNC_KEY]: overrides }).then(
+        () => {
+          resolve();
+        },
+        (error) => {
           console.warn(
             "SLACTAC Storage: Could not save to sync storage, saving to local instead.",
-            chrome.runtime.lastError.message
+            error
           );
           // If sync fails, save to local storage.
-          chrome.storage.local.set({ [SYNC_KEY]: overrides }, () => {
-            if (chrome.runtime.lastError) {
+          browser.storage.local.set({ [SYNC_KEY]: overrides }).then(
+            () => {
+              resolve();
+            },
+            (localError) => {
               console.error(
                 "SLACTAC Storage: Critical - Failed to save to local storage.",
-                chrome.runtime.lastError.message
+                localError
               );
-              reject(chrome.runtime.lastError);
-            } else {
-              resolve();
+              reject(localError);
             }
-          });
-        } else {
-          resolve();
+          );
         }
-      });
+      );
     });
   },
 
@@ -79,26 +83,31 @@ const storage = {
    */
   clear: () => {
     return new Promise((resolve, reject) => {
-      chrome.storage.sync.remove(SYNC_KEY, () => {
-        if (chrome.runtime.lastError) {
+      browser.storage.sync.remove(SYNC_KEY).then(
+        () => {
+          // Always attempt to clear local storage as well.
+          return browser.storage.local.remove(SYNC_KEY);
+        },
+        (error) => {
           console.warn(
             "SLACTAC Storage: Could not clear sync storage.",
-            chrome.runtime.lastError.message
+            error
           );
+          // Continue to clear local storage even if sync fails
+          return browser.storage.local.remove(SYNC_KEY);
         }
-        // Always attempt to clear local storage as well.
-        chrome.storage.local.remove(SYNC_KEY, () => {
-          if (chrome.runtime.lastError) {
-            console.error(
-              "SLACTAC Storage: Critical - Failed to clear local storage.",
-              chrome.runtime.lastError.message
-            );
-            reject(chrome.runtime.lastError);
-          } else {
-            resolve();
-          }
-        });
-      });
+      ).then(
+        () => {
+          resolve();
+        },
+        (localError) => {
+          console.error(
+            "SLACTAC Storage: Critical - Failed to clear local storage.",
+            localError
+          );
+          reject(localError);
+        }
+      );
     });
   },
 };

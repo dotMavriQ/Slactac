@@ -40,25 +40,19 @@ function getActiveTab() {
       }
     };
 
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-        return;
-      }
-
+    browser.tabs.query({ active: true, currentWindow: true }).then((tabs) => {
       if (tabs && tabs.length > 0) {
         resolveFromTabs(tabs);
         return;
       }
 
-      chrome.tabs.query({ active: true, lastFocusedWindow: true }, (fallbackTabs) => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-          return;
-        }
-
+      browser.tabs.query({ active: true, lastFocusedWindow: true }).then((fallbackTabs) => {
         resolveFromTabs(fallbackTabs);
+      }).catch((error) => {
+        reject(new Error(error.message || String(error)));
       });
+    }).catch((error) => {
+      reject(new Error(error.message || String(error)));
     });
   });
 }
@@ -117,30 +111,26 @@ const debouncedLoadOverrideForCurrentChannel = debounce(
 );
 
 function loadLastPickedChannel() {
-  chrome.storage.local.get(LOCAL_PICK_KEY, (data) => {
-    if (chrome.runtime.lastError) {
-      console.warn(
-        "SLACTAC Popup: Could not load last picked channel.",
-        chrome.runtime.lastError.message
-      );
-      return;
-    }
+  browser.storage.local.get(LOCAL_PICK_KEY).then((data) => {
     const storedName = data[LOCAL_PICK_KEY];
     if (typeof storedName === "string" && storedName.trim()) {
       applyPickedChannelName(storedName, { showFeedback: false });
     }
+  }).catch((error) => {
+    console.warn(
+      "SLACTAC Popup: Could not load last picked channel.",
+      error.message || String(error)
+    );
   });
 }
 
 function notifyContentScript() {
   getActiveTab()
     .then((tab) => {
-      chrome.tabs.sendMessage(tab.id, { action: "refreshNamesSLACTAC" }, () => {
-        if (chrome.runtime.lastError) {
-          console.warn(
-            `SLACTAC: Could not send refresh message to tab ${tab.id}: ${chrome.runtime.lastError.message}`
-          );
-        }
+      browser.tabs.sendMessage(tab.id, { action: "refreshNamesSLACTAC" }).catch((error) => {
+        console.warn(
+          `SLACTAC: Could not send refresh message to tab ${tab.id}: ${error.message || String(error)}`
+        );
       });
     })
     .catch((error) => {
@@ -204,9 +194,11 @@ function showMainView() {
 }
 
 function showStoredView() {
-  chrome.storage.local.remove(LOCAL_PICK_KEY, () => {
+  browser.storage.local.remove(LOCAL_PICK_KEY).then(() => {
     originalNameInput.value = "";
     newNameInput.value = "";
+  }).catch((error) => {
+    console.warn("Error clearing storage:", error);
   });
   mainView.classList.add("hidden");
   storedView.classList.remove("hidden");
@@ -214,7 +206,7 @@ function showStoredView() {
 }
 
 // --- Storage Change Sync ---
-chrome.storage.onChanged.addListener((changes, areaName) => {
+browser.storage.onChanged.addListener((changes, areaName) => {
   if (areaName !== "local") return;
   if (!Object.prototype.hasOwnProperty.call(changes, LOCAL_PICK_KEY)) return;
   const { newValue } = changes[LOCAL_PICK_KEY];
@@ -245,7 +237,7 @@ saveButton.addEventListener("click", () => {
       newNameInput.value = "";
       originalNameInput.focus();
       // Clear the locally stored picked name after a successful save.
-      chrome.storage.local.remove(LOCAL_PICK_KEY);
+      browser.storage.local.remove(LOCAL_PICK_KEY);
       notifyContentScript();
     }).catch(error => {
       showMessage(`Error saving override: ${error.message}`, true);
@@ -261,43 +253,44 @@ channelPickerButton.addEventListener("click", async () => {
     console.log(
       `SLACTAC Popup: Sending activateChannelPicker to tab ${tab.id}`
     );
-    chrome.tabs.sendMessage(
+    browser.tabs.sendMessage(
       tab.id,
-      { action: "activateChannelPicker" },
-      (response) => {
-        if (chrome.runtime.lastError) {
-          console.error(
-            `SLACTAC Popup: Error sending 'activateChannelPicker' message: ${chrome.runtime.lastError.message}`
-          );
-          showMessage(
-            "Cannot communicate with page. Make sure you're on Slack and the page is fully loaded.",
-            true
-          );
-          chrome.tabs.sendMessage(tab.id, {
-            action: "deactivateChannelPicker",
-          });
-          document.body.classList.remove("channel-picker-active");
-        } else if (response && response.success) {
-          console.log(
-            "SLACTAC Popup: Picker activation acknowledged by content script."
-          );
-          showMessage(
-            "Picker active! Click a channel on the Slack page.",
-            false
-          );
-          document.body.classList.add("channel-picker-active");
-        } else {
-          console.warn(
-            `SLACTAC Popup: Content script reported activation failure: ${response?.status}`
-          );
-          showMessage(
-            response?.status || "Failed to activate picker on page.",
-            true
-          );
-          document.body.classList.remove("channel-picker-active");
-        }
+      { action: "activateChannelPicker" }
+    ).then((response) => {
+      if (response && response.success) {
+        console.log(
+          "SLACTAC Popup: Picker activation acknowledged by content script."
+        );
+        showMessage(
+          "Picker active! Click a channel on the Slack page.",
+          false
+        );
+        document.body.classList.add("channel-picker-active");
+      } else {
+        console.warn(
+          `SLACTAC Popup: Content script reported activation failure: ${response?.status}`
+        );
+        showMessage(
+          response?.status || "Failed to activate picker on page.",
+          true
+        );
+        document.body.classList.remove("channel-picker-active");
       }
-    );
+    }).catch((error) => {
+      console.error(
+        `SLACTAC Popup: Error sending 'activateChannelPicker' message: ${error.message || String(error)}`
+      );
+      showMessage(
+        "Cannot communicate with page. Make sure you're on Slack and the page is fully loaded.",
+        true
+      );
+      getActiveTab().then((tab) => {
+        browser.tabs.sendMessage(tab.id, {
+          action: "deactivateChannelPicker",
+        }).catch(() => {});
+      }).catch(() => {});
+      document.body.classList.remove("channel-picker-active");
+    });
   } catch (error) {
     console.error("SLACTAC Popup: Could not find suitable active tab.", error);
     showMessage(error.message || "Could not find active tab.", true);

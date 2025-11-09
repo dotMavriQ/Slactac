@@ -91,22 +91,24 @@ function storePickedChannelName(name) {
   return new Promise((resolve, reject) => {
     const sanitizedName = typeof name === "string" ? name.trim() : "";
     if (!sanitizedName) {
-      chrome.storage.local.remove(LOCAL_PICK_KEY, () => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-        } else {
+      browser.storage.local.remove(LOCAL_PICK_KEY).then(
+        () => {
           resolve();
+        },
+        (error) => {
+          reject(new Error(error.message || String(error)));
         }
-      });
+      );
       return;
     }
-    chrome.storage.local.set({ [LOCAL_PICK_KEY]: sanitizedName }, () => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-      } else {
+    browser.storage.local.set({ [LOCAL_PICK_KEY]: sanitizedName }).then(
+      () => {
         resolve();
+      },
+      (error) => {
+        reject(new Error(error.message || String(error)));
       }
-    });
+    );
   });
 }
 
@@ -527,7 +529,7 @@ observer.observe(targetNode, { childList: true, subtree: true });
 
 // --- Combined Message Listener ---
 console.log("SLACTAC CONTENT SCRIPT: Setting up message listener...");
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("SLACTAC CONTENT SCRIPT: Message received -> ", request.action);
   if (request.action === "refreshNamesSLACTAC") {
     console.log("SLACTAC: Handling refreshNamesSLACTAC");
