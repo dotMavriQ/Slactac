@@ -3,6 +3,7 @@ name: package-extension
 on:
   push:
     branches: [master]
+    tags: ['v*-chrome', 'v*']
   release:
     types: [published]
   workflow_dispatch:
@@ -26,7 +27,7 @@ jobs:
         run: |
           set -euo pipefail
           VERSION="${{ steps.manifest.outputs.version }}"
-          ARCHIVE_NAME="slactac-v${VERSION}.zip"
+          ARCHIVE_NAME="slactac_chrome-v${VERSION}.zip"
           zip -r "$ARCHIVE_NAME" \
             manifest.json \
             content.js \
@@ -40,11 +41,11 @@ jobs:
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: slactac-${{ steps.manifest.outputs.version }}
+          name: slactac-chrome-${{ steps.manifest.outputs.version }}
           path: ${{ steps.package.outputs.archive }}
 
       - name: Upload release asset
-        if: github.event_name == 'release'
+        if: github.event_name == 'release' || startsWith(github.ref, 'refs/tags/')
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.package.outputs.archive }}
