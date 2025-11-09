@@ -153,20 +153,39 @@ function loadStoredTacks() {
   storage.get().then((overrides) => {
     const keys = Object.keys(overrides);
     if (keys.length === 0) {
-      tacksTable.innerHTML = '<div class="tack-row">No tacks stored yet.</div>';
+      const emptyRow = document.createElement("div");
+      emptyRow.className = "tack-row";
+      emptyRow.textContent = "No tacks stored yet.";
+      tacksTable.innerHTML = "";
+      tacksTable.appendChild(emptyRow);
       return;
     }
     keys.forEach((originalName) => {
       const customName = overrides[originalName];
       const row = document.createElement("div");
       row.className = "tack-row";
-      row.innerHTML = `
-        <div class="tack-names">
-          <div class="tack-custom">${customName}</div>
-          <div class="tack-original">${originalName}</div>
-        </div>
-        <div class="tack-delete" data-original="${originalName}">✕</div>
-      `;
+
+      const namesDiv = document.createElement("div");
+      namesDiv.className = "tack-names";
+
+      const customDiv = document.createElement("div");
+      customDiv.className = "tack-custom";
+      customDiv.textContent = customName;
+
+      const originalDiv = document.createElement("div");
+      originalDiv.className = "tack-original";
+      originalDiv.textContent = originalName;
+
+      namesDiv.appendChild(customDiv);
+      namesDiv.appendChild(originalDiv);
+
+      const deleteDiv = document.createElement("div");
+      deleteDiv.className = "tack-delete";
+      deleteDiv.setAttribute("data-original", originalName);
+      deleteDiv.textContent = "✕";
+
+      row.appendChild(namesDiv);
+      row.appendChild(deleteDiv);
       tacksTable.appendChild(row);
     });
     document.querySelectorAll(".tack-delete").forEach((button) => {
