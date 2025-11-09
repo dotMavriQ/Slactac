@@ -9,16 +9,13 @@ permissions:
   contents: write
 
 jobs:
-  build-all-platforms:
+  build-chrome:
     runs-on: ubuntu-latest
-    strategy:
-      matrix:
-        branch: [master, firefox]
     steps:
-      - name: Checkout ${{ matrix.branch }}
+      - name: Checkout master
         uses: actions/checkout@v4
         with:
-          ref: ${{ matrix.branch }}
+          ref: master
 
       - name: Determine manifest version
         id: manifest
@@ -26,21 +23,46 @@ jobs:
           VERSION=$(jq -r '.version // "0.0.0"' manifest.json)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
-      - name: Determine platform
-        id: platform
-        run: |
-          if [[ "${{ matrix.branch }}" == "firefox" ]]; then
-            echo "suffix=firefox" >> "$GITHUB_OUTPUT"
-          else
-            echo "suffix=chrome" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Create extension zip
-        id: ext_zip
+      - name: Create chrome zip
+        id: chrome_zip
         run: |
           VERSION="${{ steps.manifest.outputs.version }}"
-          SUFFIX="${{ steps.platform.outputs.suffix }}"
-          ARCHIVE_NAME="slactac_${SUFFIX}-v${VERSION}.zip"
+          ARCHIVE_NAME="slactac_chrome-v${VERSION}.zip"
+          zip -r "$ARCHIVE_NAME" \
+            manifest.json \
+            content.js \
+            popup.js \
+            popup.html \
+            popup.css \
+            storage.js \
+            icons
+          echo "archive=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload chrome artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slactac-chrome
+          path: ${{ steps.chrome_zip.outputs.archive }}
+
+  build-firefox:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout firefox
+        uses: actions/checkout@v4
+        with:
+          ref: firefox
+
+      - name: Determine manifest version
+        id: manifest
+        run: |
+          VERSION=$(jq -r '.version // "0.0.0"' manifest.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Create firefox zip
+        id: firefox_zip
+        run: |
+          VERSION="${{ steps.manifest.outputs.version }}"
+          ARCHIVE_NAME="slactac_firefox-v${VERSION}.zip"
           zip -r "$ARCHIVE_NAME" \
             manifest.json \
             content.js \
@@ -52,14 +74,14 @@ jobs:
             compat.js
           echo "archive=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
 
-      - name: Upload extension artifact
+      - name: Upload firefox artifact
         uses: actions/upload-artifact@v4
         with:
-          name: slactac-${{ steps.platform.outputs.suffix }}-${{ steps.manifest.outputs.version }}
-          path: ${{ steps.ext_zip.outputs.archive }}
+          name: slactac-firefox
+          path: ${{ steps.firefox_zip.outputs.archive }}
 
   create-source-and-release:
-    needs: build-all-platforms
+    needs: [build-chrome, build-firefox]
     runs-on: ubuntu-latest
     steps:
       - name: Checkout repository
@@ -92,9 +114,12 @@ jobs:
               --exclude='.github/workflows' \
               -czf slactac-source-v${{ steps.version.outputs.version }}.tar.gz .
 
-      - name: Flatten artifacts
+      - name: Copy extension zips
         run: |
-          find artifacts -type f -name "*.zip" -exec cp {} . \;
+          find artifacts -type f -name "*.zip" ! -name "*source*" -exec cp {} . \;
+
+      - name: List all files
+        run: ls -lah
 
       - name: Create release with all assets
         uses: softprops/action-gh-release@v2
