@@ -1,0 +1,116 @@
+name: release-complete
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build-all-platforms:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        branch: [master, firefox]
+    steps:
+      - name: Checkout ${{ matrix.branch }}
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ matrix.branch }}
+
+      - name: Determine manifest version
+        id: manifest
+        run: |
+          VERSION=$(jq -r '.version // "0.0.0"' manifest.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Determine platform
+        id: platform
+        run: |
+          if [[ "${{ matrix.branch }}" == "firefox" ]]; then
+            echo "suffix=firefox" >> "$GITHUB_OUTPUT"
+          else
+            echo "suffix=chrome" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Create extension zip
+        id: ext_zip
+        run: |
+          VERSION="${{ steps.manifest.outputs.version }}"
+          SUFFIX="${{ steps.platform.outputs.suffix }}"
+          ARCHIVE_NAME="slactac_${SUFFIX}-v${VERSION}.zip"
+          zip -r "$ARCHIVE_NAME" \
+            manifest.json \
+            content.js \
+            popup.js \
+            popup.html \
+            popup.css \
+            storage.js \
+            icons \
+            compat.js
+          echo "archive=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload extension artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slactac-${{ steps.platform.outputs.suffix }}-${{ steps.manifest.outputs.version }}
+          path: ${{ steps.ext_zip.outputs.archive }}
+
+  create-source-and-release:
+    needs: build-all-platforms
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Get version
+        id: version
+        run: |
+          VERSION=$(jq -r '.version // "0.0.0"' manifest.json)
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+
+      - name: Create source code archives
+        run: |
+          # Create source code zip
+          zip -r slactac-source-v${{ steps.version.outputs.version }}.zip \
+            -x ".git*" "node_modules/*" "artifacts/*" ".github/workflows/*" \
+            . 
+          
+          # Create source code tar.gz
+          tar --exclude='.git' \
+              --exclude='node_modules' \
+              --exclude='artifacts' \
+              --exclude='.github/workflows' \
+              -czf slactac-source-v${{ steps.version.outputs.version }}.tar.gz .
+
+      - name: Flatten artifacts
+        run: |
+          find artifacts -type f -name "*.zip" -exec cp {} . \;
+
+      - name: Create release with all assets
+        uses: softprops/action-gh-release@v2
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: v${{ steps.version.outputs.version }}
+          name: Slactac v${{ steps.version.outputs.version }}
+          body: |
+            Bump to v${{ steps.version.outputs.version }} - Add renamed channel yellow highlighting feature
+
+            - Channels already renamed now shine with gruvbox yellow in picker mode
+            - Only shows yellow highlight while Pick Channel tool is active
+            - Applies to both Chrome and Firefox versions
+          files: |
+            slactac_chrome-v*.zip
+            slactac_firefox-v*.zip
+            slactac-source-v*.zip
+            slactac-source-v*.tar.gz
+          draft: false
