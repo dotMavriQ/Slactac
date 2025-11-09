@@ -105,14 +105,14 @@ jobs:
           # Create source code zip
           zip -r slactac-source-v${{ steps.version.outputs.version }}.zip \
             -x ".git*" "node_modules/*" "artifacts/*" ".github/workflows/*" \
-            . 
-          
+            . || true
+
           # Create source code tar.gz
           tar --exclude='.git' \
               --exclude='node_modules' \
               --exclude='artifacts' \
               --exclude='.github/workflows' \
-              -czf slactac-source-v${{ steps.version.outputs.version }}.tar.gz .
+              -czf slactac-source-v${{ steps.version.outputs.version }}.tar.gz . || true
 
       - name: Copy extension zips
         run: |
