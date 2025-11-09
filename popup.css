@@ -26,11 +26,11 @@
     --table-header-bg: #3c3836;
     --delete-icon-color: #fb4934;
   }
-  
+
   *, *::before, *::after {
     box-sizing: border-box;
   }
-  
+
   body {
     background-color: var(--bg);
     color: var(--fg);
@@ -43,7 +43,7 @@
     font-size: 14px;
     border-radius: 10px; /* rounded edges on the popup itself */
   }
-  
+
   .popup-container {
     display: flex;
     flex-direction: column;
@@ -53,7 +53,7 @@
     border-radius: 10px;
     overflow: hidden;
   }
-  
+
   .header {
     display: flex;
     align-items: center;
@@ -61,20 +61,20 @@
     margin-bottom: 15px;
     width: 100%;
   }
-  
+
   .logo {
     width: 32px;
     height: 32px;
     margin-right: 10px;
   }
-  
+
   h3 {
     color: var(--accent);
     margin: 0;
     font-weight: 600;
     text-align: center;
   }
-  
+
   h4 {
     color: var(--accent);
     margin-top: 0;
@@ -82,29 +82,29 @@
     text-align: center;
     width: 100%;
   }
-  
+
   .view {
     width: 100%;
     flex: 1; /* fill available space so views stay consistent */
     overflow: hidden;
   }
-  
+
   .hidden {
     display: none;
   }
-  
+
   .input-group {
     margin-bottom: 15px;
     width: 100%;
   }
-  
+
   .input-hint {
     font-size: 0.8em;
     color: var(--fg-dim);
     margin-top: 2px;
     font-style: italic;
   }
-  
+
   label {
     display: block;
     margin-bottom: 5px;
@@ -112,7 +112,7 @@
     color: var(--fg-dim);
     font-weight: 500;
   }
-  
+
   input[type="text"] {
     width: 100%;
     padding: 8px 10px;
@@ -124,18 +124,18 @@
     line-height: 1.4;
     transition: border-color 0.2s ease, box-shadow 0.2s ease;
   }
-  
+
   input[type="text"]::placeholder {
     color: var(--fg-dim);
     opacity: 0.8;
   }
-  
+
   input[type="text"]:focus {
     outline: none;
     border-color: var(--accent);
     box-shadow: 0 0 0 2px rgba(215, 153, 33, 0.4);
   }
-  
+
   button {
     width: 100%;
     padding: 10px 15px;
@@ -148,46 +148,46 @@
     transition: background-color 0.2s ease;
     text-align: center;
   }
-  
+
   .button-save {
     background-color: var(--button-save-bg);
     color: var(--button-save-fg);
     margin-bottom: 5px;
   }
-  
+
   .button-save:hover {
     background-color: var(--button-save-hover);
   }
-  
+
   .button-picker {
     background-color: var(--button-picker-bg);
     color: var(--button-save-fg);
     margin-bottom: 5px;
   }
-  
+
   .button-picker:hover {
     background-color: var(--button-picker-hover);
   }
-  
+
   .button-view {
     background-color: var(--button-view-bg);
     color: var(--button-save-fg);
   }
-  
+
   .button-view:hover {
     background-color: var(--button-view-hover);
   }
-  
+
   .button-back {
     background-color: var(--button-back-bg);
     color: var(--button-save-fg);
     margin-top: 15px;
   }
-  
+
   .button-back:hover {
     background-color: var(--button-back-hover);
   }
-  
+
   #message {
     margin-top: 15px;
     font-size: 0.9em;
@@ -197,15 +197,15 @@
     visibility: hidden;
     font-weight: 500;
   }
-  
+
   #message.success {
     color: var(--message-success);
   }
-  
+
   #message.error {
     color: var(--message-error);
   }
-  
+
   .tacks-table {
     width: 100%;
     max-height: 250px;
@@ -216,36 +216,36 @@
     -ms-overflow-style: none;  /* IE and Edge */
     scrollbar-width: none;  /* Firefox */
   }
-  
+
   .tacks-table::-webkit-scrollbar {
     display: none;
   }
-  
+
   .tack-row {
     display: flex;
     padding: 8px;
     border-bottom: 1px solid var(--table-border);
   }
-  
+
   .tack-row:last-child {
     border-bottom: none;
   }
-  
+
   .tack-names {
     flex: 1;
     display: flex;
     flex-direction: column;
   }
-  
+
   .tack-original {
     font-size: 0.85em;
     color: var(--fg-dim);
   }
-  
+
   .tack-custom {
     font-weight: 500;
   }
-  
+
   .tack-delete {
     cursor: pointer;
     color: var(--delete-icon-color);
@@ -255,11 +255,11 @@
     justify-content: center;
     padding: 0 5px;
   }
-  
+
   .tack-delete:hover {
     opacity: 0.8;
   }
-  
+
   .picker-mode {
     position: fixed;
     bottom: 0;
@@ -271,9 +271,11 @@
     padding: 5px;
     font-weight: bold;
   }
-  
-  .slactac-picker-highlighted-target {
-    /* Optional visual highlighting */
-    /* outline: 2px dashed var(--accent) !important; */
+
+  /* Renamed channels during picker mode - show with yellow/accent color */
+  .slactac-picker-renamed-channel {
+    background-color: rgba(215, 153, 33, 0.25) !important;
+    border-left: 3px solid var(--accent) !important;
+    padding-left: 5px !important;
+    transition: all 0.15s ease-out;
   }
-  

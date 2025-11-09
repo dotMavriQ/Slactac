@@ -2,7 +2,7 @@ name: package-extension
 
 on:
   push:
-    branches: [master]
+    branches: [master, firefox]
   release:
     types: [published]
   workflow_dispatch:
@@ -21,12 +21,33 @@ jobs:
           VERSION=$(jq -r '.version // "0.0.0"' manifest.json)
           echo "version=$VERSION" >> "$GITHUB_OUTPUT"
 
+      - name: Determine branch and package name
+        id: package_info
+        run: |
+          BRANCH="${{ github.ref }}"
+          BASE_VERSION="${{ steps.manifest.outputs.version }}"
+          
+          if [[ "$BRANCH" == "refs/heads/firefox" ]]; then
+            SUFFIX="firefox"
+            # Bump patch version for Firefox (e.g., 1.7.0 -> 1.7.1)
+            IFS='.' read -r MAJOR MINOR PATCH <<< "$BASE_VERSION"
+            FIREFOX_PATCH=$((PATCH + 1))
+            VERSION="${MAJOR}.${MINOR}.${FIREFOX_PATCH}"
+          else
+            SUFFIX="chrome"
+            VERSION="$BASE_VERSION"
+          fi
+          
+          ARCHIVE_NAME="slactac_${SUFFIX}-v${VERSION}.zip"
+          echo "archive=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
+          echo "suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
+          echo "version=$VERSION" >> "$GITHUB_OUTPUT"
+
       - name: Create distributable zip
         id: package
         run: |
           set -euo pipefail
-          VERSION="${{ steps.manifest.outputs.version }}"
-          ARCHIVE_NAME="slactac-v${VERSION}.zip"
+          ARCHIVE_NAME="${{ steps.package_info.outputs.archive }}"
           zip -r "$ARCHIVE_NAME" \
             manifest.json \
             content.js \
@@ -34,13 +55,14 @@ jobs:
             popup.html \
             popup.css \
             storage.js \
-            icons
+            icons \
+            compat.js
           echo "archive=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
-          name: slactac-${{ steps.manifest.outputs.version }}
+          name: slactac-${{ steps.package_info.outputs.suffix }}-${{ steps.package_info.outputs.version }}
           path: ${{ steps.package.outputs.archive }}
 
       - name: Upload release asset
@@ -48,3 +70,4 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           files: ${{ steps.package.outputs.archive }}
+
