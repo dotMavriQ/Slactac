@@ -3,7 +3,7 @@ name: package-extension
 on:
   push:
     branches: [master]
-    tags: ['v*-chrome', 'v*']
+    tags: ['v*-chrome']
   release:
     types: [published]
   workflow_dispatch:
