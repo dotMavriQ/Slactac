@@ -3,6 +3,7 @@ name: package-extension
 on:
   push:
     branches: [master, firefox]
+    tags: ['v*']
   release:
     types: [published]
   workflow_dispatch:
@@ -26,7 +27,7 @@ jobs:
         run: |
           BRANCH="${{ github.ref }}"
           BASE_VERSION="${{ steps.manifest.outputs.version }}"
-          
+
           if [[ "$BRANCH" == "refs/heads/firefox" ]]; then
             SUFFIX="firefox"
             # Bump patch version for Firefox (e.g., 1.7.0 -> 1.7.1)
@@ -37,7 +38,7 @@ jobs:
             SUFFIX="chrome"
             VERSION="$BASE_VERSION"
           fi
-          
+
           ARCHIVE_NAME="slactac_${SUFFIX}-v${VERSION}.zip"
           echo "archive=$ARCHIVE_NAME" >> "$GITHUB_OUTPUT"
           echo "suffix=$SUFFIX" >> "$GITHUB_OUTPUT"
@@ -65,7 +66,17 @@ jobs:
           name: slactac-${{ steps.package_info.outputs.suffix }}-${{ steps.package_info.outputs.version }}
           path: ${{ steps.package.outputs.archive }}
 
-      - name: Upload release asset
+      - name: Create or update release
+        if: startsWith(github.ref, 'refs/tags/v')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ steps.package.outputs.archive }}
+          body: |
+            **Platform-Specific Release**
+            - Chrome: ${{ steps.package_info.outputs.suffix == 'chrome' && steps.package_info.outputs.version || 'N/A' }}
+            - Firefox: ${{ steps.package_info.outputs.suffix == 'firefox' && steps.package_info.outputs.version || 'N/A' }}
+
+      - name: Upload to existing release
         if: github.event_name == 'release'
         uses: softprops/action-gh-release@v2
         with:
