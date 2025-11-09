@@ -1,5 +1,18 @@
 console.log("SLACTAC Content Script STARTING - Top of file");
 
+// --- Inject CSS for picker highlighting ---
+const pickerStyleSheet = document.createElement("style");
+pickerStyleSheet.textContent = `
+  /* Renamed channels during picker mode - show with yellow/accent color */
+  .slactac-picker-renamed-channel {
+    background-color: rgba(215, 153, 33, 0.25) !important;
+    border-left: 3px solid #d79921 !important;
+    padding-left: 5px !important;
+    transition: all 0.15s ease-out;
+  }
+`;
+document.head.appendChild(pickerStyleSheet);
+
 // --- SLACTAC Name Overriding Variables & Functions ---
 function overrideChatroomNames() {
   // Load saved overrides from storage
@@ -54,6 +67,7 @@ let channelPickerActive = false;
 let originalCursor = null;
 const overlayContainerId = "slactac-overlay-container";
 const highlightedElementClass = "slactac-picker-highlighted-target";
+const renamedChannelClass = "slactac-picker-renamed-channel";
 let currentHighlightedElement = null;
 let currentHighlightedNameElement = null;
 let defaultHighlightedRegion = null;
@@ -91,22 +105,24 @@ function storePickedChannelName(name) {
   return new Promise((resolve, reject) => {
     const sanitizedName = typeof name === "string" ? name.trim() : "";
     if (!sanitizedName) {
-      chrome.storage.local.remove(LOCAL_PICK_KEY, () => {
-        if (chrome.runtime.lastError) {
-          reject(new Error(chrome.runtime.lastError.message));
-        } else {
+      browser.storage.local.remove(LOCAL_PICK_KEY).then(
+        () => {
           resolve();
+        },
+        (error) => {
+          reject(new Error(error.message || String(error)));
         }
-      });
+      );
       return;
     }
-    chrome.storage.local.set({ [LOCAL_PICK_KEY]: sanitizedName }, () => {
-      if (chrome.runtime.lastError) {
-        reject(new Error(chrome.runtime.lastError.message));
-      } else {
+    browser.storage.local.set({ [LOCAL_PICK_KEY]: sanitizedName }).then(
+      () => {
         resolve();
+      },
+      (error) => {
+        reject(new Error(error.message || String(error)));
       }
-    });
+    );
   });
 }
 
@@ -423,7 +439,50 @@ function isSlackPage() {
   return window.location.hostname.includes("app.slack.com");
 }
 
-function activateChannelPicker() {
+function markRenamedChannelsInPicker() {
+  // Get all overrides from storage
+  storage.get().then((overrides) => {
+    // overrides is a map of { originalChannelName: customName, ... }
+    // We need to check if any displayed channel name matches a custom name (value) in overrides
+    const allCustomNames = Object.values(overrides); // Get all custom names
+
+    console.log("SLACTAC Picker: Stored Tacks (overrides):", overrides);
+    console.log("SLACTAC Picker: Custom names to look for:", allCustomNames);
+
+    // Find all channel items in the sidebar
+    const sidebarSelector = ".p-channel_sidebar__list";
+    const nameOverrideSelector = ".p-channel_sidebar__name";
+    const listContainer = document.querySelector(sidebarSelector);
+
+    const nameElements = listContainer
+      ? listContainer.querySelectorAll(nameOverrideSelector)
+      : document.querySelectorAll(nameOverrideSelector);
+
+    console.log(`SLACTAC Picker: Found ${nameElements.length} channel name elements`);
+
+    // Mark channels that have been renamed
+    let markedCount = 0;
+    nameElements.forEach((element) => {
+      const displayName = element.innerText.trim();
+
+      // Check if this displayed name matches any custom name in Stored Tacks
+      if (allCustomNames.includes(displayName)) {
+        console.log(`SLACTAC Picker: MATCH! "${displayName}" found in Stored Tacks (custom name)`);
+        // Find the channel item that contains this name element
+        const channelItem = element.closest(CHANNEL_ITEM_SELECTORS.join(", "));
+        if (channelItem) {
+          channelItem.classList.add(renamedChannelClass);
+          channelItem.dataset.renamedBySlactac = "true";
+          markedCount++;
+          console.log(`SLACTAC Picker: Highlighted "${displayName}" with yellow`);
+        }
+      }
+    });
+    console.log(`SLACTAC Picker: Marked ${markedCount} channels with yellow highlight.`);
+  }).catch(error => {
+    console.error("SLACTAC: Failed to mark renamed channels in picker.", error);
+  });
+}function activateChannelPicker() {
   if (channelPickerActive) {
     console.log("SLACTAC Picker: Already active.");
     return true;
@@ -438,6 +497,7 @@ function activateChannelPicker() {
   document.body.style.cursor = "crosshair";
   createPickerOverlays();
   highlightDefaultChannelRegion();
+  markRenamedChannelsInPicker(); // Mark renamed channels with yellow
   document.addEventListener("mousemove", channelPickerMouseMoveHandler, true);
   document.addEventListener("click", channelPickerClickHandler, true);
   document.addEventListener("keydown", handleKeyDown, true);
@@ -463,6 +523,12 @@ function deactivateChannelPicker(force = false) {
   document.removeEventListener("mousemove", channelPickerMouseMoveHandler, true);
   document.removeEventListener("click", channelPickerClickHandler, true);
   document.removeEventListener("keydown", handleKeyDown, true);
+
+  // Remove renamed channel markings
+  document.querySelectorAll(`.${renamedChannelClass}`).forEach((element) => {
+    element.classList.remove(renamedChannelClass);
+    element.removeAttribute("data-renamedBySlactac");
+  });
 
   // Clear the failsafe timer
   if (pickerFailsafeTimer) {
@@ -527,7 +593,7 @@ observer.observe(targetNode, { childList: true, subtree: true });
 
 // --- Combined Message Listener ---
 console.log("SLACTAC CONTENT SCRIPT: Setting up message listener...");
-chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
+browser.runtime.onMessage.addListener((request, sender, sendResponse) => {
   console.log("SLACTAC CONTENT SCRIPT: Message received -> ", request.action);
   if (request.action === "refreshNamesSLACTAC") {
     console.log("SLACTAC: Handling refreshNamesSLACTAC");
