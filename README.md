@@ -2,17 +2,31 @@
 
 ![Slactac Logo](https://raw.githubusercontent.com/dotMavriQ/Slactac/refs/heads/master/icons/icon128.png)
 
-**Slactac** is a browser extension for Chromium-based browsers (Chrome, Microsoft Edge, Brave, etc.) that lets you persistently override and customize Slack channel names. Personalize your workspace by renaming channels to something more meaningful or easier to recognize. *(Note: user renaming is not supported yet.)*
+**Slactac** is a browser extension that lets you persistently override and customize Slack channel names. Personalize your workspace by renaming channels to something more meaningful or easier to recognize. *(Note: user renaming is not supported yet.)*
+
+**Now available for Chrome, Edge, Brave, and Firefox!**
 
 ---
 
-## ✅ Now Available on the Chrome Web Store!
+## ✅ Installation
 
-You can install **Slactac** directly from the Chrome Web Store:
+### Chrome Web Store (Chrome, Edge, Brave)
+
+Install directly from the Chrome Web Store:
 
 [https://chromewebstore.google.com/detail/slactac/gnjiocbockjlkpnlonimgihcbhpdephe](https://chromewebstore.google.com/detail/slactac/gnjiocbockjlkpnlonimgihcbhpdephe)
 
 If you find **Slactac** useful, please consider leaving a rating or short review. Any feedback helps support development and improves the extension for everyone. Obrigado!
+
+### Firefox
+
+Download the Firefox release from [GitHub Releases](https://github.com/dotMavriQ/Slactac/releases):
+
+1. Download `slactac_firefox-vX.X.X.zip` from the latest Firefox release
+2. Extract the ZIP file
+3. Open Firefox and go to `about:debugging#/runtime/this-firefox`
+4. Click **Load Temporary Add-on**
+5. Select the `manifest.json` from the extracted folder
 
 ---
 
@@ -23,21 +37,28 @@ If you find **Slactac** useful, please consider leaving a rating or short review
 - Save, view, and manage custom channel names via a polished popup interface.
 - Real-time updates on the Slack web app with persistent overrides across sessions.
 
-## Installation (Manual)
+### Manual Installation (Chrome, Edge, Brave)
 
 1. Clone or download this repository.
-2. Open Chrome or Microsoft Edge and browse to the extensions page (`chrome://extensions/` or `edge://extensions/`).
+2. Open Chrome, Edge, or Brave and browse to the extensions page:
+   - Chrome: `chrome://extensions/`
+   - Edge: `edge://extensions/`
+   - Brave: `brave://extensions/`
 3. Enable **Developer Mode** in the top-right corner.
 4. Click **Load unpacked** and select the `slactac` folder.
 
-### Microsoft Edge notes
+**Note:** Edge and Brave may ask you to review the requested permissions (`tabs`, `activeTab`, and `storage`). These are required for the channel picker and for updating the active Slack tab reliably. If you do not see your Slack workspace update immediately, ensure the Slack tab is focused and refreshed once after installing the extension.
 
-- Edge may ask you to review the requested permissions (`tabs`, `activeTab`, and `storage`). These are required for the channel picker and for updating the active Slack tab reliably.
-- If you do not see your Slack workspace update immediately, ensure the Slack tab is focused and refreshed once after installing the extension.
+## Installation (Manual)
 
 ## Releases
 
-Every push to `master` (and any release you publish) triggers a workflow that bundles the extension into `slactac-v<version>.zip`. The package is uploaded as a workflow artifact, and the same archive is attached to release assets when a GitHub release is created. Download that zip to load the extension unpacked or submit it to the Chrome Web Store / Microsoft Edge Add-ons catalogue.
+Every push to the `master` and `firefox` branches triggers automated builds:
+
+- **Chrome/Edge/Brave**: Tagged releases on `master` branch create `slactac_chrome-vX.X.X.zip`
+- **Firefox**: Tagged releases on `firefox` branch create `slactac_firefox-vX.X.X.zip` (auto-bumped +0.0.1)
+
+Both are available as GitHub release assets. Download the appropriate ZIP for your browser or submit to the respective store catalogues.
 
 ## Usage
 
