@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "SlacTac",
-  "version": "1.7.0",
+  "version": "1.7.1",
   "description": "Rename a Slack channel in your client.",
   "permissions": ["storage", "activeTab", "tabs"],
   "action": {
