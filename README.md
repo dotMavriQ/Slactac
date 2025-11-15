@@ -6,18 +6,8 @@
 
 | Browser | Availability |
 |--------|--------------|
-| **Firefox** | **Available now on Firefox Add-ons** |
-| **Chrome / Edge / Brave** | **Available now on the Chrome Web Store** |
-
----
-
-## 🔧 Installation Links
-
-- **Firefox:**  
-  [Slactac on Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/slactac/)
-
-- **Chrome / Edge / Brave:**  
-  [Slactac on Chrome Web Store](https://chromewebstore.google.com/detail/slactac/gnjiocbockjlkpnlonimgihcbhpdephe)
+| **Firefox** | [Available now on Firefox Add-ons](https://addons.mozilla.org/en-US/firefox/addon/slactac/) |
+| **Chrome / Edge / Brave** | [Available now on the Chrome Web Store](https://chromewebstore.google.com/detail/slactac/gnjiocbockjlkpnlonimgihcbhpdephe) |
 
 ---
 
