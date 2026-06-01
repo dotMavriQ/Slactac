@@ -254,12 +254,22 @@ saveButton.addEventListener("click", () => {
     return;
   }
   storage.get().then(overrides => {
-    const updatedOverrides = {
-      ...overrides,
-      [originalName]: newName,
-    };
+    // Renaming a channel back to its real name means it no longer needs a tack.
+    // Drop the entry entirely instead of storing a pointless original->original
+    // self-map that would just clutter the stored tacks list.
+    const isRevertToOriginal = originalName === newName;
+    let updatedOverrides;
+    if (isRevertToOriginal) {
+      const { [originalName]: _removed, ...rest } = overrides;
+      updatedOverrides = rest;
+    } else {
+      updatedOverrides = {
+        ...overrides,
+        [originalName]: newName,
+      };
+    }
     storage.set(updatedOverrides).then(() => {
-      showMessage("Tack saved successfully!");
+      showMessage(isRevertToOriginal ? "Tack removed!" : "Tack saved successfully!");
       originalNameInput.value = "";
       newNameInput.value = "";
       originalNameInput.focus();
