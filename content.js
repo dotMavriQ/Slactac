@@ -25,21 +25,33 @@ function overrideChatroomNames() {
       ? listContainer.querySelectorAll(nameOverrideSelector)
       : document.querySelectorAll(nameOverrideSelector);
 
-    nameElements.forEach((element) => {
-      if (!element.dataset.originalNameSlactac) {
-        element.dataset.originalNameSlactac = element.innerText.trim();
-      }
-      const originalName = element.dataset.originalNameSlactac;
-      if (overrides[originalName]) {
-        if (element.innerText.trim() !== overrides[originalName]) {
-          element.innerText = overrides[originalName];
+    // Pause our own observer while we rewrite text. Setting innerText removes
+    // and re-adds text nodes, which the MutationObserver would otherwise treat
+    // as a relevant change and re-schedule us — a feedback loop that, combined
+    // with cyclic overrides, drives the blinking reported in issue #1.
+    stopObservingSidebar();
+    try {
+      nameElements.forEach((element) => {
+        if (!element.dataset.originalNameSlactac) {
+          element.dataset.originalNameSlactac = element.innerText.trim();
         }
-      } else {
-        if (element.innerText.trim() !== originalName) {
-          element.innerText = originalName;
+        const originalName = element.dataset.originalNameSlactac;
+        const override = overrides[originalName];
+        // A self-map (original -> original) is not a real override; applying it
+        // is pointless churn. Fall through to restoring the original name.
+        if (override && override !== originalName) {
+          if (element.innerText.trim() !== override) {
+            element.innerText = override;
+          }
+        } else {
+          if (element.innerText.trim() !== originalName) {
+            element.innerText = originalName;
+          }
         }
-      }
-    });
+      });
+    } finally {
+      startObservingSidebar();
+    }
   }).catch(error => {
     console.error("SLACTAC: Failed to get overrides for name replacement.", error);
   });
@@ -373,6 +385,29 @@ function highlightPickerElement(element, nameElement = null, options = {}) {
 function extractPickerChannelName(nameElement, fallbackElement = null) {
   const element = nameElement || fallbackElement;
   if (!element) return null;
+  // If SLACTAC has already overridden this channel, the element carries the
+  // TRUE original name in dataset.originalNameSlactac. Prefer it over the
+  // visible text: re-picking a renamed channel must key off the original name,
+  // otherwise we'd store a reverse mapping (custom -> original) on top of the
+  // existing one, forming a cycle that makes the sidebar name blink. (Issue #1)
+  const storedOriginal =
+    element.dataset && typeof element.dataset.originalNameSlactac === "string"
+      ? element.dataset.originalNameSlactac.trim()
+      : "";
+  if (storedOriginal) {
+    return storedOriginal;
+  }
+  const nestedNameWithOriginal = element.querySelector
+    ? element.querySelector("[data-original-name-slactac]")
+    : null;
+  if (nestedNameWithOriginal) {
+    const nestedOriginal = (
+      nestedNameWithOriginal.dataset.originalNameSlactac || ""
+    ).trim();
+    if (nestedOriginal) {
+      return nestedOriginal;
+    }
+  }
   const textSource =
     typeof element.innerText === "string"
       ? element.innerText
@@ -580,16 +615,26 @@ const observer = new MutationObserver((mutationsList, observer) => {
   }
 });
 const sidebarTargetSelector = ".p-channel_sidebar__list";
-const targetNode =
+const observerTargetNode =
   document.querySelector(sidebarTargetSelector) || document.body;
+const observerOptions = { childList: true, subtree: true };
+
+function startObservingSidebar() {
+  observer.observe(observerTargetNode, observerOptions);
+}
+
+function stopObservingSidebar() {
+  observer.disconnect();
+}
+
 console.log(
   `SLACTAC: Observing ${
-    targetNode === document.body
+    observerTargetNode === document.body
       ? "document.body (fallback)"
       : sidebarTargetSelector
   } for changes (Name Override).`
 );
-observer.observe(targetNode, { childList: true, subtree: true });
+startObservingSidebar();
 
 // --- Combined Message Listener ---
 console.log("SLACTAC CONTENT SCRIPT: Setting up message listener...");
